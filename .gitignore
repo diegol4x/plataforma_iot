@@ -221,3 +221,7 @@ __marimo__/
 
 #Privat
 privat/
+
+#MQTT
+mosquitto/data/
+mosquitto/log/
