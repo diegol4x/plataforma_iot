@@ -1,5 +1,5 @@
 """Punto de entrada principal de la aplicación."""
-from plataforma_iot.mqtt_client import run
+from plataforma_iot.mqtt.suscriber import run
 
 
 def main() -> None:

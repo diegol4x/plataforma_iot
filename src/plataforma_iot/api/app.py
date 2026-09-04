@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 from plataforma_iot.db import get_session
 from plataforma_iot.models import Lectura
-from plataforma_iot.schemas import LecturaOut
+from plataforma_iot.api.schemas import LecturaOut
 
 app = FastAPI(title="Plataforma IoT")
 
