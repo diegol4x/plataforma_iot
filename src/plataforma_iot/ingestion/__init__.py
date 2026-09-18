@@ -1,0 +1,1 @@
+"""Capa d'ingesta: recepció, transformació i persistència de missatges."""
