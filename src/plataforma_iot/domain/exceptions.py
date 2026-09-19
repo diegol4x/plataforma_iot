@@ -32,3 +32,15 @@ class UnknownTopic(IngestionError):
     """Cap transformador registrat atén este topic."""
 
     reason = "unknown_topic"
+
+
+class UnknownSensorType(IngestionError):
+    """La magnitud rebuda no està registrada al catàleg"""
+
+    reason = "unknown_sensor_type"
+
+
+class UnknownUnit(IngestionError):
+    """La unitat rebuda no està registrada al catàleg"""
+
+    reason = "unknown_unit"

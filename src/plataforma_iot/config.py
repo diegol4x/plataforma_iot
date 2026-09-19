@@ -22,7 +22,7 @@ def load_settings() -> Settings:
         ),
         mqtt_host=os.environ.get("MQTT_HOST", "localhost"),
         mqtt_port=int(os.environ.get("MQTT_PORT", "1883")),
-        mqtt_topic=os.environ.get("MQTT_TOPIC", "sensores/+/lecturas"),
+        mqtt_topic=os.environ.get("MQTT_TOPIC", "plataforma/v1/#"),
     )
 
 
