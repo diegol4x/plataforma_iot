@@ -1,0 +1,7 @@
+{
+  "time": "2026-09-19T09:33:43.889992+00:00",
+  "readings": [
+    {"name": "temperature", "unit": "Cel", "value": 30.82},
+    {"name": "humidity", "unit": "%RH", "value": 80.31}
+  ]
+}
