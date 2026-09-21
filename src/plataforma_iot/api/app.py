@@ -1,19 +1,12 @@
-"""API REST: expone las lecturas persistidas."""
+"""Aplicació FastAPI: exposa la telemetria ingerida."""
+
 from fastapi import FastAPI
 
-from plataforma_iot.db import get_session
-from plataforma_iot.models import Lectura
-from plataforma_iot.api.schemas import LecturaOut
+from plataforma_iot.api.routers import devices, sensors, readings, discards
 
-app = FastAPI(title="Plataforma IoT")
+app = FastAPI(title="Plataforma IoT", version="0.1.0")
 
-
-@app.get("/lecturas", response_model=list[LecturaOut])
-def listar_lecturas(sensor_id: str | None = None, limit: int = 50) -> list[Lectura]:
-    """Devuelve las últimas lecturas, opcionalmente filtradas por sensor."""
-
-    with get_session() as session:
-        query = session.query(Lectura)
-        if sensor_id is not None:
-            query = query.filter(Lectura.sensor_id == sensor_id)
-        return query.order_by(Lectura.timestamp.desc()).limit(limit).all()
+app.include_router(devices.router)
+app.include_router(sensors.router)
+app.include_router(readings.router)
+app.include_router(discards.router)
