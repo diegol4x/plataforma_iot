@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Index,
 )
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -57,6 +58,9 @@ class Reading(Base):
     """Valor puntual observat per un sensor."""
 
     __tablename__ = "readings"
+    __table_args__ = (
+        Index("ix_readings_sensor_time", "sensor_id","time"),
+    )
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     id: Mapped[uuid.UUID] = mapped_column(
