@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from plataforma_iot.domain.canonical import CanonicalUplink
 from plataforma_iot.domain.exceptions import UnknownSensorType
+from plataforma_iot.domain.device_status import DeviceStatus
+
 from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.sensor import Sensor
@@ -63,7 +65,7 @@ def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
         source= uplink.source,
         device_id=uplink.device_id,
         type="node",
-        status="unprovisioned",
+        status=DeviceStatus.UNPROVISIONED,
     )
 
     session.add(device)

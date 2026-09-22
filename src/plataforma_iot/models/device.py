@@ -9,10 +9,12 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Enum as SAEnum,
 )
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from plataforma_iot.domain.device_status import DeviceStatus
 from plataforma_iot.models.base import Base
 from plataforma_iot.models.space import Space
 
@@ -29,7 +31,16 @@ class Device(Base):
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="unprovisioned"
+        SAEnum(
+            DeviceStatus,
+            name="device_status",
+            native_enum=False,
+            length=32,
+            values_callable=lambda enum: [member.value for member in enum],
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=DeviceStatus.UNPROVISIONED,
     )
     battery_level: Mapped[int|None] = mapped_column(Integer, nullable=True)
     last_seen: Mapped[datetime | None] = mapped_column(
