@@ -10,19 +10,15 @@ from plataforma_iot.db import get_session
 from plataforma_iot.domain.exceptions import IngestionError
 from plataforma_iot.ingestion.persistence import persist
 from plataforma_iot.ingestion.router import Router
-from plataforma_iot.ingestion.transformers.own import OwnTransformer
+from plataforma_iot.ingestion.sources import SOURCES, build_router
 from plataforma_iot.models.telemetry import Discard
-
-
-def build_router() -> Router:
-    """Crea el diccionari amb la correspondència prefixe->transformador"""
-    return Router({"plataforma/v1/": OwnTransformer()})
 
 
 def on_connect(client, userdata, flags, reason_code, properties=None) -> None:
     print(f"Connectat a MQTT ({settings.mqtt_host}:{settings.mqtt_port}): {reason_code}")
-    client.subscribe(settings.mqtt_topic)
-    print(f"Subscrit a: {settings.mqtt_topic}")
+    for source in SOURCES:
+        client.subscribe(source.topic_filter)
+        print(f"Subscrit a: {source.topic_filter}")
 
 
 def on_message(client, userdata, msg: mqtt.MQTTMessage) -> None:

@@ -10,7 +10,6 @@ class Settings:
     database_url: str
     mqtt_host: str
     mqtt_port: int
-    mqtt_topic: str
 
 
 def load_settings() -> Settings:
@@ -22,7 +21,6 @@ def load_settings() -> Settings:
         ),
         mqtt_host=os.environ.get("MQTT_HOST", "localhost"),
         mqtt_port=int(os.environ.get("MQTT_PORT", "1883")),
-        mqtt_topic=os.environ.get("MQTT_TOPIC", "plataforma/v1/#"),
     )
 
 
