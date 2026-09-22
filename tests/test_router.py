@@ -35,7 +35,7 @@ def test_delegates_to_the_matching_transformer():
     chirpstack = FakeTransformer("chirpstack")
     router = Router({"plataforma/v1/": own, "application/": chirpstack})
 
-    uplink = router.delegate_transformation(
+    uplink = router.transform(
         "plataforma/v1/node-00/up", b"{}", RECEIVED_AT
     )
 
@@ -47,7 +47,7 @@ def test_passes_topic_and_payload_unchanged():
     own = FakeTransformer("own")
     router = Router({"plataforma/v1/": own})
 
-    router.delegate_transformation("plataforma/v1/node-00/up", b"payload", RECEIVED_AT)
+    router.transform("plataforma/v1/node-00/up", b"payload", RECEIVED_AT)
 
     assert own.calls == [("plataforma/v1/node-00/up", b"payload")]
 
@@ -55,11 +55,11 @@ def test_rejects_an_unregistered_topic():
     router = Router({"plataforma/v1/": FakeTransformer("own")})
 
     with pytest.raises(UnknownTopic):
-        router.delegate_transformation("desconegut/node-00", b"{}", RECEIVED_AT)
+        router.transform("desconegut/node-00", b"{}", RECEIVED_AT)
 
 
 def test_rejects_any_topic_when_there_are_no_routes():
     router = Router({})
 
     with pytest.raises(UnknownTopic):
-        router.delegate_transformation("plataforma/v1/node-00/up", b"{}", RECEIVED_AT)
+        router.transform("plataforma/v1/node-00/up", b"{}", RECEIVED_AT)
