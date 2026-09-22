@@ -1,0 +1,51 @@
+{
+  "deduplicationId": "72b180ec-7ea0-4aff-8f60-80e1956a3b04",
+  "time": "2026-09-21T17:27:49.506836301+00:00",
+  "deviceInfo": {
+    "tenantId": "071b6de8-9802-42b5-bbe9-a425d473eb6d",
+    "tenantName": "ChirpStack",
+    "applicationId": "fc081e09-a142-44f5-8a33-ef44c1e9ff62",
+    "applicationName": "plataforma-iot",
+    "deviceProfileId": "8f40a9f0-8639-4ecd-8f9a-9a60b69b4f5b",
+    "deviceProfileName": "heltec-bme280",
+    "deviceName": "804f6944ce5483dd",
+    "devEui": "804f6944ce5483dd",
+    "deviceClassEnabled": "CLASS_A",
+    "tags": {}
+  },
+  "devAddr": "018b5fc2",
+  "adr": true,
+  "dr": 5,
+  "fCnt": 1,
+  "fPort": 1,
+  "confirmed": false,
+  "data": "AQIADw==",
+  "object": {
+    "analogInput": {
+      "1": 0.15
+    }
+  },
+  "rxInfo": [
+    {
+      "gatewayId": "0016c001f116de4d",
+      "uplinkId": 2013826616,
+      "nsTime": "2026-09-21T17:27:49.266201713+00:00",
+      "rssi": -49,
+      "snr": 13.75,
+      "channel": 3,
+      "context": "R9LOgg==",
+      "crcStatus": "CRC_OK"
+    }
+  ],
+  "txInfo": {
+    "frequency": 867100000,
+    "modulation": {
+      "lora": {
+        "bandwidth": 125000,
+        "spreadingFactor": 7,
+        "codeRate": "CR_4_5"
+      }
+    }
+  },
+  "regionConfigId": "eu868"
+}

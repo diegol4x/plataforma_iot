@@ -1,0 +1,134 @@
+"""Transformer de ChirpStack v4: esdeveniments event/up amb còdec CayenneLPP."""
+
+import json
+from datetime import datetime
+
+from pydantic import ValidationError
+
+from plataforma_iot.domain.canonical import CanonicalRecord, CanonicalUplink
+from plataforma_iot.domain.exceptions import (
+    InvalidTimestamp,
+    InvalidValue,
+    MissingField,
+    UnreadablePayload,
+)
+
+SOURCE = "chirpstack"
+
+CAYENNE_TYPES: dict[str, tuple[str, str]] = {
+    "temperatureSensor": ("temperature", "Cel"),
+    "humiditySensor": ("humidity", "%RH"),
+    "barometer": ("pressure", "hPa"),
+}
+
+
+class ChirpStackTransformer:
+    """Convertix un event/up de ChirpStack a format canònic"""
+
+    source = SOURCE
+
+    def transform(self, topic: str, payload: bytes, received_at: datetime) -> CanonicalUplink:
+        data = self._decode(payload)
+        device_id = self._device_id(data)
+        time = self._parse_time(data)
+        records = self._build_records(data,time)
+
+        try:
+            return CanonicalUplink(
+                source=SOURCE,
+                device_id=device_id,
+                received_at=received_at,
+                records=records,
+                f_cnt=data.get("fCnt"),
+                f_port=data.get("fPort"),
+                **self._radio(data),
+            )
+        except ValidationError as exc:
+            raise InvalidValue(f"Uplink invàlid: {exc.error_count()} errors") from exc
+
+
+    def _decode(self, payload: bytes) -> dict:
+        """Descodifica el payload i comprova que siga un JSON"""
+
+        try:
+            data = json.loads(payload)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise UnreadablePayload(str(exc)) from exc
+
+        if not isinstance(data, dict):
+            raise UnreadablePayload("s'esperava un objecte JSON")
+
+        return data
+
+    def _device_id(self, data: dict) -> str:
+        """Obté el DevEUI"""
+
+        dev_eui = (data.get("deviceInfo") or {}).get("devEui")
+
+        if not dev_eui:
+            raise MissingField('falta el camp "deviceInfo.devEui"')
+
+        return dev_eui
+
+    def _parse_time(self, data: dict) -> datetime:
+        """Interpreta el camp 'time'"""
+
+        raw = data.get("time")
+
+        if raw is None:
+            raise MissingField("falta el camp 'time'")
+
+        try:
+            return datetime.fromisoformat(raw)
+        except (TypeError, ValueError) as exc:
+            raise InvalidTimestamp(f"Marca temporal invàlida: {raw!r}") from exc
+
+
+    def _build_records(self, data: dict, time: datetime) -> list[CanonicalRecord]:
+        """Construïx un registre per cada lectura CayenneLPP suportada"""
+
+        obj = data.get("object")
+
+        if obj is None:
+            raise MissingField("Falta el camp 'object' (dispositiu sense còdec o còdec fallit)")
+        if not isinstance(obj, dict):
+            raise InvalidValue(f"'object' amb format inesperat: {obj!r}")
+
+        records = []
+        ignored = []
+
+        for lpp_type, channels in obj.items():
+            mapping = CAYENNE_TYPES.get(lpp_type)
+
+            if mapping is None or not isinstance(channels, dict):
+                ignored.append(lpp_type)
+                continue
+
+            name, unit = mapping
+
+            for value in channels.values():
+                if isinstance(value, bool) or not isinstance(value, (int,float)):
+                    raise InvalidValue(f"Valor no numèric a {lpp_type}: {value!r}")
+
+                records.append(
+                    CanonicalRecord(name=name, value=float(value), unit=unit, time=time)
+                )
+
+        if not records:
+            raise InvalidValue(f"cap lectura CayenneLPP suportada; tipus ignorats: {ignored}")
+
+        return records
+
+    def _radio(self, data: dict) -> dict:
+        """Metadata de la ràdio: gateway amb millor RSSI i spreading factor"""
+
+        rx_info = [rx for rx in data.get("rxInfo") or [] if isinstance(rx, dict)]
+        best = max(rx_info, key=lambda rx: rx.get("rssi", float("-inf")), default=None)
+        lora = ((data.get("txInfo") or {}).get("modulation" or {}).get("lora") or {})
+
+        return {
+            "gateway_id": best.get("gatewayId") if best else None,
+            "rssi": best.get("rssi") if best else None,
+            "snr": best.get("snr") if best else None,
+            "spreading_factor": lora.get("spreadingFactor"),
+        }
