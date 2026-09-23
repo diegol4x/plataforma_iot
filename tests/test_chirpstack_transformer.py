@@ -163,3 +163,14 @@ def test_invalid_field_becomes_ingestion_error(transformer, event):
     event["fCnt"] = "no és un número"
     with pytest.raises(InvalidValue):
         transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
+
+def test_error_after_identity_carries_it(transformer, event):
+    with pytest.raises(InvalidValue) as info:
+        transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
+    assert (info.value.source, info.value.device_id) == ("chirpstack", "804f6944ce5483dd")
+
+
+def test_unreadable_payload_has_no_identity(transformer):
+    with pytest.raises(UnreadablePayload) as info:
+        transformer.transform(TOPIC, b"no es json", RECEIVED_AT)
+    assert info.value.device_id is None

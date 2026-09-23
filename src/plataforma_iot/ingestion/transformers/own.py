@@ -5,6 +5,7 @@ from datetime import datetime
 
 from plataforma_iot.domain.canonical import CanonicalRecord, CanonicalUplink
 from plataforma_iot.domain.exceptions import (
+    IngestionError,
     InvalidTimestamp,
     InvalidValue,
     MissingField,
@@ -22,15 +23,23 @@ class OwnTransformer:
 
     def transform(self, topic: str, payload: bytes, received_at: datetime) -> CanonicalUplink:
         device_id = self._device_id_from_topic(topic)
+        try:
+            return self._build(payload, device_id, received_at)
+        except IngestionError as exc:
+            exc.with_identity(SOURCE, device_id)
+            raise
+
+    def _build(self, payload: bytes, device_id: str, received_at: datetime) -> CanonicalUplink:
+        """Construïx el canònic un cop coneguda la identitat del dispositiu."""
         data = self._decode(payload)
         time = self._parse_time(data)
         records = self._build_records(data, time)
 
         return CanonicalUplink(
-            source = SOURCE,
+            source=SOURCE,
             device_id=device_id,
             received_at=received_at,
-            records= records,
+            records=records,
         )
 
     def _device_id_from_topic(self, topic: str) -> str:

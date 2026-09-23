@@ -1,8 +1,20 @@
 """Excepcions de domini: els motius pels quals un missatge es descarta."""
 
+from typing import Self
 
 class IngestionError(Exception):
+    """Error que impedix ingerir un missatge"""
+
     reason = "unknown"
+    source: str | None = None
+    device_id: str | None = None
+
+    def with_identity(self, source: str, device_id: str) -> Self:
+        """Associa l'error al dispositiu que ha enviat el missatge."""
+        self.source = source
+        self.device_id = device_id
+        return self
+
 
 class UnreadablePayload(IngestionError):
     """El payload no es pot descodificar (JSON invàlid, binari corrupte)."""

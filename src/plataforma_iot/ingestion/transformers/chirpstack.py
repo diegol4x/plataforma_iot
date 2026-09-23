@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from plataforma_iot.domain.canonical import CanonicalRecord, CanonicalUplink
 from plataforma_iot.domain.exceptions import (
+    IngestionError,
     InvalidTimestamp,
     InvalidValue,
     MissingField,
@@ -30,8 +31,16 @@ class ChirpStackTransformer:
     def transform(self, topic: str, payload: bytes, received_at: datetime) -> CanonicalUplink:
         data = self._decode(payload)
         device_id = self._device_id(data)
+        try:
+            return self._build(data, device_id, received_at)
+        except IngestionError as exc:
+            exc.with_identity(SOURCE, device_id)
+            raise
+
+    def _build(self, data: dict, device_id: str, received_at: datetime) -> CanonicalUplink:
+        """Construïx el canònic un cop coneguda la identitat del dispositiu."""
         time = self._parse_time(data)
-        records = self._build_records(data,time)
+        records = self._build_records(data, time)
 
         try:
             return CanonicalUplink(
@@ -44,7 +53,7 @@ class ChirpStackTransformer:
                 **self._radio(data),
             )
         except ValidationError as exc:
-            raise InvalidValue(f"Uplink invàlid: {exc.error_count()} errors") from exc
+            raise InvalidValue(f"uplink no vàlid: {exc.error_count()} errors") from exc
 
 
     def _decode(self, payload: bytes) -> dict:

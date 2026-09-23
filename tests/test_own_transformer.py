@@ -75,3 +75,15 @@ def test_rejects_empty_readings_list(transformer):
     payload = json.dumps({"time": "2026-09-19T09:33:43+00:00", "readings": []}).encode()
     with pytest.raises(InvalidValue):
         transformer.transform(TOPIC, payload, RECEIVED_AT)
+
+def test_error_after_identity_carries_it(transformer):
+    payload = json.dumps({"readings": []}).encode()
+    with pytest.raises(MissingField) as info:
+        transformer.transform(TOPIC, payload, RECEIVED_AT)
+    assert (info.value.source, info.value.device_id) == ("own", "node-00")
+
+
+def test_malformed_topic_has_no_identity(transformer, payload):
+    with pytest.raises(MissingField) as info:
+        transformer.transform("un/topic/malformat", payload, RECEIVED_AT)
+    assert info.value.device_id is None
