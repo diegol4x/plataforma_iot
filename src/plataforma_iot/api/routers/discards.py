@@ -17,6 +17,8 @@ router = APIRouter(prefix="/discards", tags=["discards"])
 def list_discards(
     session: Session = Depends(get_db),
     reason: str | None = None,
+    source: str | None = None,
+    device_id: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[Discard]:
@@ -25,6 +27,10 @@ def list_discards(
 
     if reason is not None:
         query = query.where(Discard.reason == reason)
+    if source is not None:
+        query = query.where(Discard.source == source)
+    if device_id is not None:
+        query = query.where(Discard.device_id == device_id)
 
     return list(session.scalars(query.limit(limit).offset(offset)))
 

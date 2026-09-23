@@ -25,6 +25,8 @@ class DiscardOut(OutSchema):
     id: UUID
     received_at: datetime
     topic: str
+    source: str | None
+    device_id: str | None
     reason: str
 
 class DiscardDetailOut(DiscardOut):
