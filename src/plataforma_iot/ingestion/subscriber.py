@@ -8,10 +8,13 @@ import paho.mqtt.client as mqtt
 from plataforma_iot.config import settings
 from plataforma_iot.db import get_session
 from plataforma_iot.domain.exceptions import IngestionError
+
 from plataforma_iot.ingestion.persistence import persist
 from plataforma_iot.ingestion.router import Router
 from plataforma_iot.ingestion.sources import SOURCES, build_router
+
 from plataforma_iot.models.telemetry import Discard
+from plataforma_iot.models.device import Device
 
 
 def on_connect(client, userdata, flags, reason_code, properties=None) -> None:
@@ -42,11 +45,18 @@ def _discard(msg: mqtt.MQTTMessage, received_at: datetime, exc: IngestionError) 
             Discard(
                 received_at=received_at,
                 topic=msg.topic,
+                source=exc.source,
+                device_id=exc.device_id,
                 raw_payload=msg.payload.decode("utf-8", errors="replace"),
                 reason=exc.reason,
                 detail={"message": str(exc)},
             )
         )
+        if exc.source is not None and exc.device_id is not None:
+            device = session.get(Device, (exc.source, exc.device_id))
+            if device is not None:
+                device.last_seen = received_at
+                
         session.commit()
 
 
