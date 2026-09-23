@@ -88,6 +88,8 @@ class Discard(Base):
     )
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     topic: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(32),  nullable=True)
+    device_id: Mapped[str | None] = mapped_column(String(64), nullable=True) 
     raw_payload: Mapped[str] = mapped_column(Text, nullable=False)
     reason: Mapped[str] = mapped_column(String(64), nullable=False)
     detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
