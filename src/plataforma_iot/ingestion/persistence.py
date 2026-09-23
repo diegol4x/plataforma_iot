@@ -59,6 +59,8 @@ def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
 
     device = session.get(Device, (uplink.source, uplink.device_id))
     if device is not None:
+        if device.status is DeviceStatus.SILENT:
+            device.status = DeviceStatus.ACTIVE
         return device
 
     device = Device(
