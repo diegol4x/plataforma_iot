@@ -7,8 +7,13 @@ from sqlalchemy.orm import Session
 from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorTypeOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType, Unit
+from plataforma_iot.api.dependencies import current_role, require_admin
 
-router = APIRouter(tags=["catalog"])
+
+router = APIRouter(
+    tags=["catalog"],
+    dependencies=[Depends(current_role)],
+    )
 
 @router.get("/units", response_model=list[UnitIn])
 def list_units(session: Session = Depends(get_db)) -> list[Unit]:
@@ -16,7 +21,7 @@ def list_units(session: Session = Depends(get_db)) -> list[Unit]:
 
     return list(session.scalars(select(Unit).order_by(Unit.symbol)))
 
-@router.post("/units", response_model=UnitOut, status_code=201)
+@router.post("/units", response_model=UnitOut, status_code=201, dependencies=[Depends(require_admin)],)
 def create_unit(payload: UnitIn, session: Session = Depends(get_db)) -> Unit:
     """Dona d'alta una unitat de mesura"""
 
@@ -39,7 +44,7 @@ def list_sensor_types(session: Session = Depends(get_db)) -> list[SensorType]:
     return list(session.scalars(select(SensorType).order_by(SensorType.code)))
 
 
-@router.post("/sensor_types", response_model=SensorTypeOut, status_code=201)
+@router.post("/sensor_types", response_model=SensorTypeOut, status_code=201, dependencies=[Depends(require_admin)],)
 def create_sensor_type(payload: SensorTypeIn, session: Session = Depends(get_db)) -> SensorType:
     """Dona d'alta una magnitud amb unitat existent prèvia"""
 

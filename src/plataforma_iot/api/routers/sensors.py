@@ -8,8 +8,14 @@ from plataforma_iot.api.schemas import SensorOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.sensor import Sensor
+from plataforma_iot.api.dependencies import current_role, require_admin
 
-router = APIRouter(prefix="/sensors", tags=["sensors"])
+
+router = APIRouter(
+    prefix="/sensors",
+    tags=["sensors"],
+    dependencies=[Depends(current_role)],
+    )
 
 
 def _base_query():

@@ -9,9 +9,14 @@ from plataforma_iot.db import get_db
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.space import Space
 from plataforma_iot.domain.device_status import DeviceStatus
+from plataforma_iot.api.dependencies import current_role, require_admin
 
 
-router = APIRouter(prefix="/devices", tags=["devices"])
+router = APIRouter(
+    prefix="/devices",
+    tags=["devices"],
+    dependencies=[Depends(current_role)],
+    )
 
 @router.get("", response_model=list[DeviceOut])
 def list_devices( 
@@ -42,7 +47,12 @@ def get_device(
     return device
 
 
-@router.patch("/{source}/{device_id}", response_model=DeviceOut)
+@router.patch(
+        "/{source}/{device_id}",
+        response_model=DeviceOut,
+        dependencies=[Depends(require_admin)],
+        )
+
 def provision_device(
     source: str,
     device_id: str,

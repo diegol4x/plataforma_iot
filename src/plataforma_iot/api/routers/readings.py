@@ -11,8 +11,14 @@ from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.telemetry import Reading
+from plataforma_iot.api.dependencies import current_role, require_admin
 
-router = APIRouter(prefix="/readings", tags=["readings"])
+
+router = APIRouter(
+    prefix="/readings",
+    tags=["readings"],
+    dependencies=[Depends(current_role)],
+    )
 
 
 @router.get("", response_model=list[ReadingOut])
