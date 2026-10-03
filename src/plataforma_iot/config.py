@@ -10,6 +10,8 @@ class Settings:
     database_url: str
     mqtt_host: str
     mqtt_port: int
+    silent_after_seconds: int
+    sweep_interval_seconds: int
 
 
 def load_settings() -> Settings:
@@ -21,6 +23,8 @@ def load_settings() -> Settings:
         ),
         mqtt_host=os.environ.get("MQTT_HOST", "localhost"),
         mqtt_port=int(os.environ.get("MQTT_PORT", "1883")),
+        silent_after_seconds = int(os.environ.get("SILENT_AFTER_SECONDS", 3600)),
+        sweep_interval_seconds = int(os.environ.get("SWEEP_INTERVAL_SECONDS", 300)),
     )
 
 
