@@ -221,6 +221,7 @@ __marimo__/
 
 #Privat
 privat/
+ERRORES.txt
 
 #MQTT
 mosquitto/data/
