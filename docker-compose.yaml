@@ -57,6 +57,18 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  sweeper:
+    build: .
+    command: ["python", "-m", "plataforma_iot.tasks.runner"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://appuser:appuser@postgres:5432/iot_monitoring
+      SILENT_AFTER_SECONDS: "3600"
+      SWEEP_INTERVAL_SECONDS: "300"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   chirpstack:
     image: chirpstack/chirpstack:4
     command: -c /etc/chirpstack
