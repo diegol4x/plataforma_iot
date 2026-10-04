@@ -176,3 +176,25 @@ def test_rejects_an_inverted_range(client, auth, world):
 
 def test_rejects_an_unknown_space(client, auth, world):
     assert client.get("/spaces/9999/readings", headers=auth).status_code == 404
+
+def test_lists_the_devices_of_a_space(client, auth, world):
+    response = client.get(f"/spaces/{world['room']}/devices", headers=auth)
+
+    assert response.status_code == 200
+    assert [d["device_id"] for d in response.json()] == ["node-00"]
+
+
+def test_a_parent_has_no_devices_of_its_own(client, auth, world):
+    response = client.get(f"/spaces/{world['building']}/devices", headers=auth)
+
+    assert response.json() == []
+
+
+def test_descendant_devices_are_included_on_request(client, auth, world):
+    response = client.get(
+        f"/spaces/{world['building']}/devices",
+        params={"include_descendants": True},
+        headers=auth,
+    )
+
+    assert len(response.json()) == 1

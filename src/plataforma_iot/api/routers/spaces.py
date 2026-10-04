@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 
 
 from plataforma_iot.api.dependencies import current_role, require_admin
-from plataforma_iot.api.schemas import SpaceIn, SpaceOut, ReadingBucketOut, ReadingSummaryOut
+from plataforma_iot.api.schemas import SpaceIn, SpaceOut, ReadingBucketOut, ReadingSummaryOut, DeviceOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.space import Space
+from plataforma_iot.models.device import Device
 from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, descendant_ids
 
 router = APIRouter(
@@ -81,3 +82,27 @@ def space_readings(
         return summarize(session, space_ids, start, end)
 
     return series(session, space_ids, bucket, start, end)
+
+
+@router.get("/{space_id}/devices", response_model=list[DeviceOut])
+def space_devices(
+    space_id: int,
+    session: Session = Depends(get_db),
+    include_descendants: bool = Query(
+        default=False, description="Inclou també els espais continguts"
+    ),
+) -> list[Device]:
+    """Torna els dispositius ubicats en un espai"""
+
+    if session.get(Space, space_id) is None:
+        raise HTTPException(status_code=404, detail="Espai no trobat")
+
+    space_ids = descendant_ids(session, space_id) if include_descendants else [space_id]
+
+    query = (
+        select(Device)
+        .where(Device.space_id.in_(space_ids))
+        .order_by(Device.source, Device.device_id)
+    )
+
+    return list(session.scalars(query))
