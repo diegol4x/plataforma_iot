@@ -9,6 +9,7 @@ from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.telemetry import Reading
+from plataforma_iot.models.space import Space
 
 BUCKETS = ("hour", "day")
 
@@ -100,3 +101,13 @@ def series(
         }
         for moment, code, unit, avg, minimum, maximum, count in session.execute(query)
     ]
+
+def descendant_ids(session: Session, space_id: int) -> list[int]:
+    """Consulta l'arbre sencer d'ids"""
+    roots = select(Space.id).where(Space.id == space_id).cte("tree", recursive=True)
+
+    children = select(Space.id).join(roots, Space.parent_id == roots.c.id)
+
+    tree = roots.union_all(children)
+
+    return list(session.scalars(select(tree.c.id)))

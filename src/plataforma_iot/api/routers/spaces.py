@@ -7,11 +7,10 @@ from sqlalchemy.orm import Session
 
 
 from plataforma_iot.api.dependencies import current_role, require_admin
-from plataforma_iot.api.schemas import SpaceIn, SpaceOut
+from plataforma_iot.api.schemas import SpaceIn, SpaceOut, ReadingBucketOut, ReadingSummaryOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.space import Space
-from plataforma_iot.api.queries.readings import BUCKETS, series, summarize
-from plataforma_iot.api.schemas import ReadingBucketOut, ReadingSummaryOut
+from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, descendant_ids
 
 router = APIRouter(
     prefix="/spaces",
@@ -19,11 +18,13 @@ router = APIRouter(
     dependencies=[Depends(current_role)],
 )
 
+
 @router.get("", response_model=list[SpaceOut])
 def list_spaces(session: Session = Depends(get_db)) -> list[Space]:
     """Torna tots els espais"""
 
     return list(session.scalars(select(Space).order_by(Space.id)))
+
 
 @router.get("/{space_id}", response_model=SpaceOut)
 def get_space(space_id: int, session: Session = Depends(get_db)) -> Space:
@@ -33,6 +34,7 @@ def get_space(space_id: int, session: Session = Depends(get_db)) -> Space:
     if space is None:
         raise HTTPException(status_code=404, detail="Espai no trobat")
     return space
+
 
 @router.post("", response_model=SpaceOut, status_code=201, dependencies=[Depends(require_admin)])
 def create_space(payload: SpaceIn, session: Session = Depends(get_db)) -> Space:
@@ -47,6 +49,7 @@ def create_space(payload: SpaceIn, session: Session = Depends(get_db)) -> Space:
     session.refresh(space)
     return space
 
+
 @router.get(
     "/{space_id}/readings",
     response_model=list[ReadingSummaryOut] | list[ReadingBucketOut],
@@ -57,21 +60,24 @@ def space_readings(
     start: datetime | None = Query(default=None, alias="from"),
     end: datetime | None = Query(default=None, alias="to"),
     bucket: str | None = Query(default=None, description=f"Un de: {', '.join(BUCKETS)}"),
+    include_descendants: bool = Query(default=False, description="Inclou també els espais continguts"),
 ) -> list[dict]:
     """Agrega les lectures dels dispositius d'un espai"""
-    
+
     if session.get(Space, space_id) is None:
-        raise HTTPException(status_code=404, detail="espai no trobat")
+        raise HTTPException(status_code=404, detail="Espai no trobat")
 
     if start is not None and end is not None and start >= end:
         raise HTTPException(status_code=422, detail="'from' ha de ser anterior a 'to'")
 
-    if bucket is None:
-        return summarize(session, [space_id], start, end)
-
-    if bucket not in BUCKETS:
+    if bucket is not None and bucket not in BUCKETS:
         raise HTTPException(
-            status_code=422, detail=f"interval no suportat; opcions: {', '.join(BUCKETS)}"
+            status_code=422, detail=f"Interval no suportat; opcions: {', '.join(BUCKETS)}"
         )
 
-    return series(session, [space_id], bucket, start, end)
+    space_ids = descendant_ids(session, space_id) if include_descendants else [space_id]
+
+    if bucket is None:
+        return summarize(session, space_ids, start, end)
+
+    return series(session, space_ids, bucket, start, end)
