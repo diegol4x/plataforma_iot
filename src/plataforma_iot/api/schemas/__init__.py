@@ -6,6 +6,7 @@ from plataforma_iot.api.schemas.sensor import SensorOut
 from plataforma_iot.api.schemas.telemetry import DiscardDetailOut, DiscardOut, ReadingOut
 from plataforma_iot.api.schemas.catalog import UnitIn, SensorTypeIn, UnitOut, SensorTypeOut
 from plataforma_iot.api.schemas.auth import TokenOut
+from plataforma_iot.api.schemas.space import SpaceIn, SpaceOut
 
 __all__ = [
     "DeviceOut",
@@ -19,4 +20,7 @@ __all__ = [
     "SensorTypeIn",
     "UnitOut",
     "SensorTypeOut",
+    "TokenOut",
+    "SpaceIn",
+    "SpaceOut",
 ]
