@@ -19,3 +19,10 @@ class SpaceOut(OutSchema):
     name: str
     type: str
     parent_id: int | None
+
+class SpaceUpdateIn(InSchema):
+    """Modificació d'un espai"""
+
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    type: str | None = Field(default=None, min_length=1, max_length=32)
+    parent_id: int | None = None

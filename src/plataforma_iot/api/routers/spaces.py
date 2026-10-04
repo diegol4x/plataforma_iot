@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 
 
 from plataforma_iot.api.dependencies import current_role, require_admin
-from plataforma_iot.api.schemas import SpaceIn, SpaceOut, ReadingBucketOut, ReadingSummaryOut, DeviceOut
+from plataforma_iot.api.schemas import (
+    SpaceIn, 
+    SpaceOut, 
+    SpaceUpdateIn,
+    ReadingBucketOut, 
+    ReadingSummaryOut, 
+    DeviceOut,
+)
 from plataforma_iot.db import get_db
 from plataforma_iot.models.space import Space
 from plataforma_iot.models.device import Device
@@ -106,3 +113,51 @@ def space_devices(
     )
 
     return list(session.scalars(query))
+
+
+
+@router.patch(
+    "/{space_id}",
+    response_model=SpaceOut,
+    dependencies=[Depends(require_admin)],
+)
+def update_space(
+    space_id: int,
+    payload: SpaceUpdateIn,
+    session: Session = Depends(get_db),
+) -> Space:
+    """Modifica un espai: nom, tipus o ubicació dins de la jerarquia."""
+
+    space = session.get(Space, space_id)
+    if space is None:
+        raise HTTPException(status_code=404, detail="Espai no trobat")
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if "parent_id" in data:
+        _check_new_parent(session, space_id, data["parent_id"])
+
+    for field, value in data.items():
+        setattr(space, field, value)
+
+    session.commit()
+    session.refresh(space)
+    return space
+
+
+def _check_new_parent(session: Session, space_id: int, parent_id: int | None) -> None:
+    """Comprova que el nou pare existix i que no crea un cicle."""
+
+    if parent_id is None:
+        return
+
+    if parent_id == space_id:
+        raise HTTPException(status_code=422, detail="Un espai no pot ser el seu propi pare")
+
+    if session.get(Space, parent_id) is None:
+        raise HTTPException(status_code=422, detail="L'espai pare no existix")
+
+    if parent_id in descendant_ids(session, space_id):
+        raise HTTPException(
+            status_code=422, detail="El nou pare és un descendent d'este espai"
+        )

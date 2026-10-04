@@ -1,22 +1,26 @@
 """Configuració comuna de les proves."""
 
 import os
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
-from collections.abc import Generator
 
 from plataforma_iot.api.app import app
+from plataforma_iot.api.security import hash_password
 from plataforma_iot.db import get_db
+from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.base import Base
+from plataforma_iot.models.user import User
 
 ADMIN_URL = os.environ.get(
     "TEST_ADMIN_URL", "postgresql+psycopg://appuser:appuser@localhost:5432/postgres"
 )
 TEST_DB = "iot_monitoring_test"
 TEST_URL = ADMIN_URL.rsplit("/", 1)[0] + f"/{TEST_DB}"
+TEST_PASSWORD = "contrasenya-de-proves"
 
 
 @pytest.fixture(scope="session")
@@ -61,3 +65,32 @@ def client(session) -> Generator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+def _auth_header(client: TestClient, session: Session, username: str, role: UserRole) -> dict:
+    """Crea un usuari amb el rol indicat i torna la seua capçalera d'autenticació."""
+    session.add(
+        User(
+            username=username,
+            password_hash=hash_password(TEST_PASSWORD),
+            role=role,
+        )
+    )
+    session.flush()
+
+    response = client.post(
+        "/auth/token", data={"username": username, "password": TEST_PASSWORD}
+    )
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+def admin_auth(client, session) -> dict:
+    """Capçalera d'autenticació d'un administrador."""
+    return _auth_header(client, session, "admin", UserRole.ADMIN)
+
+
+@pytest.fixture
+def viewer_auth(client, session) -> dict:
+    """Capçalera d'autenticació d'un lector."""
+    return _auth_header(client, session, "lector", UserRole.VIEWER)

@@ -198,3 +198,80 @@ def test_descendant_devices_are_included_on_request(client, auth, world):
     )
 
     assert len(response.json()) == 1
+
+def test_renames_a_space(client, admin_auth, world):
+    response = client.patch(
+        f"/spaces/{world['room']}", json={"name": "Menjador"}, headers=admin_auth
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Menjador"
+
+
+def test_moves_a_space_to_another_parent(client, admin_auth, world):
+    response = client.patch(
+        f"/spaces/{world['room']}",
+        json={"parent_id": world["building"]},
+        headers=admin_auth,
+    )
+
+    assert response.json()["parent_id"] == world["building"]
+
+
+def test_detaches_a_space_from_its_parent(client, admin_auth, world):
+    response = client.patch(
+        f"/spaces/{world['room']}", json={"parent_id": None}, headers=admin_auth
+    )
+
+    assert response.json()["parent_id"] is None
+
+
+def test_rejects_a_space_as_its_own_parent(client, admin_auth, world):
+    response = client.patch(
+        f"/spaces/{world['room']}",
+        json={"parent_id": world["room"]},
+        headers=admin_auth,
+    )
+
+    assert response.status_code == 422
+
+
+def test_rejects_a_cycle(client, admin_auth, world):
+    """Moure l'edifici dins del saló deixaria els dos fora de l'arbre."""
+    response = client.patch(
+        f"/spaces/{world['building']}",
+        json={"parent_id": world["room"]},
+        headers=admin_auth,
+    )
+
+    assert response.status_code == 422
+
+
+def test_an_omitted_field_is_not_changed(client, admin_auth, world):
+    response = client.patch(
+        f"/spaces/{world['room']}", json={"name": "Menjador"}, headers=admin_auth
+    )
+
+    assert response.json()["parent_id"] == world["floor"]
+
+def test_rejects_an_indirect_cycle(client, admin_auth, world):
+    """Moure la planta dins del saló: el cicle no és amb el pare directe, sinó amb un net."""
+    response = client.patch(
+        f"/spaces/{world['floor']}",
+        json={"parent_id": world["room"]},
+        headers=admin_auth,
+    )
+
+    assert response.status_code == 422
+
+def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, session, world):
+    """Un espai que no és descendent sí que pot ser el nou pare."""
+    other = Space(name="Garatge", type="room", parent_id=world["building"])
+    session.add(other)
+    session.flush()
+
+    response = client.patch(
+        f"/spaces/{world['room']}", json={"parent_id": other.id}, headers=admin_auth
+    )
+
+    assert response.status_code == 200
