@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import AliasPath, Field
+from pydantic import AliasPath, Field, BaseModel
 
 from plataforma_iot.api.schemas.base import OutSchema
 
@@ -18,6 +18,22 @@ class ReadingOut(OutSchema):
     value: float
     unit: str = Field(validation_alias=AliasPath("sensor", "sensor_type", "unit", "symbol"))
     received_unit: str | None
+
+class ReadingSummaryOut(BaseModel):
+    """Resum d'una magnitud en un rang"""
+
+    name: str
+    unit: str
+    avg: float
+    min: float
+    max: float
+    count: int
+
+
+class ReadingBucketOut(ReadingSummaryOut):
+    """Resum d'una magnitud en un interval de temps"""
+
+    bucket: datetime
 
 class DiscardOut(OutSchema):
     """Missatge descartat"""
