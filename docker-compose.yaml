@@ -77,51 +77,6 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
-  chirpstack:
-    image: chirpstack/chirpstack:4
-    command: -c /etc/chirpstack
-    volumes:
-      - ./infra/chirpstack:/etc/chirpstack
-    environment:
-      MQTT_BROKER_HOST: mosquitto
-      REDIS_HOST: redis
-      POSTGRESQL_HOST: chirpstack-postgres
-    ports:
-      - "8080:8080"
-    depends_on:
-      chirpstack-postgres:
-        condition: service_healthy
-      mosquitto:
-        condition: service_started
-      redis:
-        condition: service_started
-    restart: unless-stopped
-
-  chirpstack-postgres:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_USER: chirpstack
-      POSTGRES_PASSWORD: chirpstack
-      POSTGRES_DB: chirpstack
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chirpstack"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - ./infra/chirpstack-postgres/initdb:/docker-entrypoint-initdb.d
-      - chirpstackpgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --save 300 1 --save 60 100 --appendonly no
-    volumes:
-      - redisdata:/data
-    restart: unless-stopped
-
 volumes:
   pgdata:
   mosquittodata:
-  chirpstackpgdata:
-  redisdata:
