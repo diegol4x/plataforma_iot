@@ -44,11 +44,11 @@ def world(session) -> dict:
     session.add(building)
     session.flush()
 
-    floor = Space(name="Planta", type="floor", parent_id=building.id)
+    floor = Space(name="Planta", type="storey", parent_id=building.id)
     session.add(floor)
     session.flush()
 
-    room = Space(name="Saló", type="room", parent_id=floor.id)
+    room = Space(name="Saló", type="space", parent_id=floor.id)
     session.add(room)
     session.flush()
 
@@ -266,7 +266,7 @@ def test_rejects_an_indirect_cycle(client, admin_auth, world):
 
 def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, session, world):
     """Un espai que no és descendent sí que pot ser el nou pare."""
-    other = Space(name="Garatge", type="room", parent_id=world["building"])
+    other = Space(name="Garatge", type="space", parent_id=world["building"])
     session.add(other)
     session.flush()
 

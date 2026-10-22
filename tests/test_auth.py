@@ -104,7 +104,7 @@ def test_a_viewer_can_read(client, viewer):
 def test_a_viewer_cannot_write(client, viewer):
     response = client.post(
         "/spaces",
-        json={"name": "Saló", "type": "room"},
+        json={"name": "Saló", "type": "space"},
         headers=_auth(_token(client, "lector")),
     )
 
@@ -114,7 +114,7 @@ def test_a_viewer_cannot_write(client, viewer):
 def test_an_admin_can_write(client, admin):
     response = client.post(
         "/spaces",
-        json={"name": "Saló", "type": "room"},
+        json={"name": "Saló", "type": "space"},
         headers=_auth(_token(client, "admin")),
     )
 
