@@ -10,8 +10,7 @@ class SensorOut(OutSchema):
     id: int
     source: str
     device_id: str
-    name: str   
-    channel: int | None
+    name: str
     active: bool
 
     sensor_type_code: str = Field(validation_alias=AliasPath("sensor_type", "code"))

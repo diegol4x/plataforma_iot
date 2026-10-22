@@ -16,7 +16,12 @@ from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.device import Device
 
 class Sensor(Base):
-    """Instrument de medició concret muntat a un dispositiu"""
+    """Instrument de medició concret muntat a un dispositiu.
+    
+    Un Device té com a màxim un Sensor per sensorType. 
+    Per a suportar-ne més, caldria distingir-los per `name`
+    (temperature-interior, temperature-exterior), no per un identificador numèric.
+    """
 
     __tablename__ = "sensors"
     __table_args__ = (
