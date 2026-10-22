@@ -22,14 +22,14 @@ if TYPE_CHECKING:
     from plataforma_iot.models.sensor import Sensor
 
 class Device(Base):
-    """Dispositiu desplegat amb funció de node o passarel·la"""
+    """Dispositiu desplegat que envia telemetria"""
 
     __tablename__ = "devices"
 
     source: Mapped[str] = mapped_column(String(32), primary_key=True)
     device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(
         SAEnum(
             DeviceStatus,

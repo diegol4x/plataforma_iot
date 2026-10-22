@@ -66,7 +66,6 @@ def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
     device = Device(
         source= uplink.source,
         device_id=uplink.device_id,
-        type="node",
         status=DeviceStatus.UNPROVISIONED,
     )
 
