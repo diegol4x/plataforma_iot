@@ -8,7 +8,6 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     ForeignKeyConstraint,
-    Integer,
     String,
     Text,
     Index,
@@ -41,12 +40,10 @@ class Uplink(Base):
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     device_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    gateway_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    snr: Mapped[float | None] = mapped_column(Float, nullable=True)
-    spreading_factor: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    f_cnt: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    f_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    uplink_metadata: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
 
     device: Mapped["Device"] = relationship()
 

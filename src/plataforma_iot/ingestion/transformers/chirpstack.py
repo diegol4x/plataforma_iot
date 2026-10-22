@@ -48,13 +48,10 @@ class ChirpStackTransformer:
                 device_id=device_id,
                 received_at=received_at,
                 records=records,
-                f_cnt=data.get("fCnt"),
-                f_port=data.get("fPort"),
-                **self._radio(data),
+                uplink_metadata=self._metadata(data),
             )
         except ValidationError as exc:
             raise InvalidValue(f"uplink no vàlid: {exc.error_count()} errors") from exc
-
 
     def _decode(self, payload: bytes) -> dict:
         """Descodifica el payload i comprova que siga un JSON"""
@@ -128,16 +125,20 @@ class ChirpStackTransformer:
 
         return records
 
-    def _radio(self, data: dict) -> dict:
-        """Metadata de la ràdio: gateway amb millor RSSI i spreading factor"""
+    def _metadata(self, data: dict) -> dict:
+        """Aplana rxInfo i txInfo dins del sac de metadades"""
 
         rx_info = [rx for rx in data.get("rxInfo") or [] if isinstance(rx, dict)]
         best = max(rx_info, key=lambda rx: rx.get("rssi", float("-inf")), default=None)
-        lora = ((data.get("txInfo") or {}).get("modulation" or {}).get("lora") or {})
+        lora = ((data.get("txInfo") or {}).get("modulation") or {}).get("lora") or {}
 
-        return {
+        metadata = {
             "gateway_id": best.get("gatewayId") if best else None,
             "rssi": best.get("rssi") if best else None,
             "snr": best.get("snr") if best else None,
             "spreading_factor": lora.get("spreadingFactor"),
+            "f_cnt": data.get("fCnt"),
+            "f_port": data.get("fPort"),
         }
+
+        return {key: value for key, value in metadata.items() if value is not None}

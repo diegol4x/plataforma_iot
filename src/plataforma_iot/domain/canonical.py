@@ -31,12 +31,9 @@ class CanonicalUplink(BaseModel):
     received_at: datetime
     records: list[CanonicalRecord] = Field(min_length=1)
 
-    gateway_id: str | None = Field(default=None, max_length=64)
-    rssi: int | None = None
-    snr: float | None = None
-    spreading_factor: int | None = None
-    f_cnt: int | None = None
-    f_port: int | None = None
+    # Sac lliure: cada transformador decidix què va dins
+    uplink_metadata: dict = Field(default_factory=dict)
+
 
     @field_validator("received_at")
     @classmethod

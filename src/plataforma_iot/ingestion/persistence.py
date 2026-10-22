@@ -24,12 +24,7 @@ def persist(session: Session, uplink: CanonicalUplink) -> None:
         received_at = uplink.received_at,
         source = uplink.source,
         device_id = uplink.device_id,
-        gateway_id = uplink.gateway_id,
-        rssi = uplink.rssi,
-        snr = uplink.snr,
-        spreading_factor = uplink.spreading_factor,
-        f_cnt = uplink.f_cnt,
-        f_port = uplink.f_port,
+        uplink_metadata = uplink.uplink_metadata,
     )
 
     session.add(db_uplink)

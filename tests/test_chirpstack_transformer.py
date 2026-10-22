@@ -80,12 +80,14 @@ def test_extracts_radio_metadata(transformer, event):
     event["object"] = BME280_OBJECT
     uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
 
-    assert uplink.gateway_id == "0016c001f116de4d"
-    assert uplink.rssi == -49
-    assert uplink.snr == 13.75
-    assert uplink.spreading_factor == 7
-    assert uplink.f_cnt == 1
-    assert uplink.f_port == 1
+    assert uplink.uplink_metadata == {
+        "gateway_id": "0016c001f116de4d",
+        "rssi": -49,
+        "snr": 13.75,
+        "spreading_factor": 7,
+        "f_cnt": 1,
+        "f_port": 1,
+    }
 
 
 def test_picks_gateway_with_best_rssi(transformer, event):
@@ -93,19 +95,21 @@ def test_picks_gateway_with_best_rssi(transformer, event):
     event["rxInfo"].append({"gatewayId": "aaaaaaaaaaaaaaaa", "rssi": -30, "snr": 9.0})
     uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
 
-    assert uplink.gateway_id == "aaaaaaaaaaaaaaaa"
-    assert uplink.rssi == -30
+    assert uplink.uplink_metadata["gateway_id"] == "aaaaaaaaaaaaaaaa"
+    assert uplink.uplink_metadata["rssi"] == -30
 
 
 def test_radio_metadata_is_optional(transformer, event):
+    """Sense ràdio, les claus no hi són: un JSON amb nuls no aporta res."""
     event["object"] = BME280_OBJECT
     event["rxInfo"] = []
     event["txInfo"] = {"frequency": 868800000, "modulation": {"fsk": {"datarate": 50000}}}
     uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
 
-    assert uplink.gateway_id is None
-    assert uplink.rssi is None
-    assert uplink.spreading_factor is None
+    assert "gateway_id" not in uplink.uplink_metadata
+    assert "rssi" not in uplink.uplink_metadata
+    assert "spreading_factor" not in uplink.uplink_metadata
+    assert uplink.uplink_metadata["f_cnt"] == 1
 
 
 def test_device_id_comes_from_payload_not_topic(transformer, event):
@@ -160,7 +164,7 @@ def test_rejects_non_numeric_value(transformer, event):
 def test_invalid_field_becomes_ingestion_error(transformer, event):
     """Un ValidationError de Pydantic no ha d'escapar: tombaria el subscriber."""
     event["object"] = BME280_OBJECT
-    event["fCnt"] = "no és un número"
+    event["deviceInfo"]["devEui"] = "x" * 100
     with pytest.raises(InvalidValue):
         transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
 
