@@ -9,13 +9,13 @@ from plataforma_iot.db import get_db
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.space import Space
 from plataforma_iot.domain.device_status import DeviceStatus
-from plataforma_iot.api.dependencies import current_role, require_admin
+from plataforma_iot.api.dependencies import current_user, require_admin
 
 
 router = APIRouter(
     prefix="/devices",
     tags=["devices"],
-    dependencies=[Depends(current_role)],
+    dependencies=[Depends(current_user)],
     )
 
 @router.get("", response_model=list[DeviceOut])

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import current_role, require_admin
+from plataforma_iot.api.dependencies import current_user, require_admin
 from plataforma_iot.api.schemas import (
     SpaceIn, 
     SpaceOut, 
@@ -23,7 +23,7 @@ from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, desc
 router = APIRouter(
     prefix="/spaces",
     tags=["spaces"],
-    dependencies=[Depends(current_role)],
+    dependencies=[Depends(current_user)],
 )
 
 
