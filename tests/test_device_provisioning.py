@@ -46,8 +46,8 @@ def device(session) -> Device:
 
 
 @pytest.fixture
-def space(session) -> Space:
-    item = Space(name="Saló", type="space")
+def space(session, project) -> Space:
+    item = Space(name="Saló", type="space", project_id=project.id)
     session.add(item)
     session.flush()
     return item

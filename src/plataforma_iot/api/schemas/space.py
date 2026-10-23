@@ -11,6 +11,7 @@ class SpaceIn(InSchema):
     name: str = Field(min_length=1, max_length=128)
     type: str = Field(min_length=1, max_length=32)
     parent_id: int | None = None
+    project_id: int
 
 class SpaceOut(OutSchema):
     """Espai"""

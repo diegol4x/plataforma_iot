@@ -38,18 +38,18 @@ def auth(client, session) -> dict:
 
 
 @pytest.fixture
-def world(session) -> dict:
+def world(session, project) -> dict:
     """Edifici > planta > saló, amb un node que mesura temperatura"""
-    
-    building = Space(name="Edifici", type="building")
+
+    building = Space(name="Edifici", type="building", project_id=project.id)
     session.add(building)
     session.flush()
 
-    floor = Space(name="Planta", type="storey", parent_id=building.id)
+    floor = Space(name="Planta", type="storey", parent_id=building.id, project_id=project.id)
     session.add(floor)
     session.flush()
 
-    room = Space(name="Saló", type="space", parent_id=floor.id)
+    room = Space(name="Saló", type="space", parent_id=floor.id, project_id=project.id)
     session.add(room)
     session.flush()
 
@@ -64,7 +64,6 @@ def world(session) -> dict:
     device = Device(
         source="own",
         device_id="node-00",
-        type="node",
         status=DeviceStatus.ACTIVE,
         space_id=room.id,
     )
@@ -98,7 +97,12 @@ def world(session) -> dict:
         )
 
     session.flush()
-    return {"building": building.id, "floor": floor.id, "room": room.id}
+    return {
+        "building": building.id,
+        "floor": floor.id,
+        "room": room.id,
+        "project": project.id,
+    }
 
 
 def test_summarizes_the_readings_of_a_space(client, auth, world):
@@ -267,7 +271,9 @@ def test_rejects_an_indirect_cycle(client, admin_auth, world):
 
 def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, session, world):
     """Un espai que no és descendent sí que pot ser el nou pare."""
-    other = Space(name="Garatge", type="space", parent_id=world["building"])
+    other = Space(
+        name="Garatge", type="space", parent_id=world["building"], project_id=world["project"]
+    )
     session.add(other)
     session.flush()
 

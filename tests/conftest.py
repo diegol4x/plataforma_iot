@@ -14,6 +14,9 @@ from plataforma_iot.db import get_db
 from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.base import Base
 from plataforma_iot.models.user import User
+from plataforma_iot.models.project import Project
+from plataforma_iot.models.workgroup import Workgroup
+
 
 ADMIN_URL = os.environ.get(
     "TEST_ADMIN_URL", "postgresql+psycopg://appuser:appuser@localhost:5432/postgres"
@@ -94,3 +97,20 @@ def admin_auth(client, session) -> dict:
 def viewer_auth(client, session) -> dict:
     """Capçalera d'autenticació d'un lector."""
     return _auth_header(client, session, "lector", UserRole.VIEWER)
+
+@pytest.fixture
+def project(session) -> Project:
+    """Un projecte amb el seu grup i propietari, per a penjar-hi espais."""
+    workgroup = Workgroup(name="Grup de proves")
+    owner = User(
+        username="propietari",
+        password_hash=hash_password(TEST_PASSWORD),
+        role=UserRole.VIEWER,
+    )
+    session.add_all([workgroup, owner])
+    session.flush()
+
+    item = Project(name="Projecte de proves", workgroup_id=workgroup.id, owner_id=owner.id)
+    session.add(item)
+    session.flush()
+    return item

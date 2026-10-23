@@ -12,7 +12,7 @@ class DeviceOut(OutSchema):
     source: str
     device_id: str
     name: str | None
-    type: str
+    type: str | None
     status: str
     battery_level: int | None
     last_seen: datetime | None

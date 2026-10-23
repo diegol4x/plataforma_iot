@@ -5,6 +5,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from plataforma_iot.models.base import Base
 from plataforma_iot.domain.space_type import SpaceType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from plataforma_iot.models.project import Project
 
 class Space(Base):
     """Ubicació física o lògica: edifici, sala, planta, ..."""
@@ -30,6 +34,12 @@ class Space(Base):
     )
 
     parent: Mapped["Space | None"] = relationship(remote_side=[id])
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="spaces")
 
     def __repr__(self) -> str:
         return f"Space(name={self.name!r}, type={self.type!r})"

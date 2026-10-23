@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-
 from plataforma_iot.api.dependencies import current_role, require_admin
 from plataforma_iot.api.schemas import (
     SpaceIn, 
@@ -17,6 +16,7 @@ from plataforma_iot.api.schemas import (
 )
 from plataforma_iot.db import get_db
 from plataforma_iot.models.space import Space
+from plataforma_iot.models.project import Project
 from plataforma_iot.models.device import Device
 from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, descendant_ids
 
@@ -46,12 +46,20 @@ def get_space(space_id: int, session: Session = Depends(get_db)) -> Space:
 
 @router.post("", response_model=SpaceOut, status_code=201, dependencies=[Depends(require_admin)])
 def create_space(payload: SpaceIn, session: Session = Depends(get_db)) -> Space:
-    """Dona d'alta un espai"""
+    """Dona d'alta un espai dins d'un projecte"""
+
+    if session.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=422, detail="El projecte no existix")
 
     if payload.parent_id is not None and session.get(Space, payload.parent_id) is None:
         raise HTTPException(status_code=422, detail="L'espai pare no existix")
 
-    space = Space(name=payload.name, type=payload.type, parent_id=payload.parent_id)
+    space = Space(
+        name=payload.name,
+        type=payload.type,
+        parent_id=payload.parent_id,
+        project_id=payload.project_id,
+    )
     session.add(space)
     session.commit()
     session.refresh(space)

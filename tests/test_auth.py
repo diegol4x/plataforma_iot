@@ -101,20 +101,20 @@ def test_a_viewer_can_read(client, viewer):
     assert response.status_code == 200
 
 
-def test_a_viewer_cannot_write(client, viewer):
+def test_a_viewer_cannot_write(client, viewer, project):
     response = client.post(
         "/spaces",
-        json={"name": "Saló", "type": "space"},
+        json={"name": "Saló", "type": "space", "project_id": project.id},
         headers=_auth(_token(client, "lector")),
     )
 
     assert response.status_code == 403
 
 
-def test_an_admin_can_write(client, admin):
+def test_an_admin_can_write(client, admin, project):
     response = client.post(
         "/spaces",
-        json={"name": "Saló", "type": "space"},
+        json={"name": "Saló", "type": "space", "project_id": project.id},
         headers=_auth(_token(client, "admin")),
     )
 
