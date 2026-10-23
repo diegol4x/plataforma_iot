@@ -1,27 +1,33 @@
 """Endpoints d'espai"""
 
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from plataforma_iot.api.dependencies import current_user
+from plataforma_iot.api.permissions import (
+    can_assign_device_to_space,
+    can_write_project,
+    can_write_space,
+    visible_device_identities,
+    visible_project_ids,
+)
+from plataforma_iot.api.queries.readings import BUCKETS, descendant_ids, series, summarize
 from plataforma_iot.api.schemas import (
-    SpaceIn, 
-    SpaceOut, 
-    SpaceUpdateIn,
-    ReadingBucketOut, 
-    ReadingSummaryOut, 
     DeviceOut,
+    ReadingBucketOut,
+    ReadingSummaryOut,
+    SpaceIn,
+    SpaceOut,
+    SpaceUpdateIn,
 )
 from plataforma_iot.db import get_db
-from plataforma_iot.models.space import Space, device_space
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.project import Project
+from plataforma_iot.models.space import Space, device_space
 from plataforma_iot.models.user import User
-from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, descendant_ids
-from plataforma_iot.api.permissions import can_write_space, can_write_project, visible_project_ids
-
 
 router = APIRouter(
     prefix="/spaces",
@@ -46,17 +52,6 @@ def list_spaces(
     return list(session.scalars(query))
 
 
-@router.get("/{space_id}", response_model=SpaceOut)
-def get_space(
-    space_id: int,
-    user: User = Depends(current_user),
-    session: Session = Depends(get_db),
-) -> Space:
-    """Torna un espai donat un id"""
-
-    return _visible_space(session, user, space_id)
-
-
 @router.post("", response_model=SpaceOut, status_code=201)
 def create_space(
     payload: SpaceIn,
@@ -66,7 +61,8 @@ def create_space(
     """Dona d'alta un espai dins d'un projecte.
 
     Qui el crea ha de ser propietari del projecte: un espai no té propietat
-    pròpia, la hereta del projecte que el conté"""
+    pròpia, la hereta del projecte que el conté.
+    """
 
     project = session.get(Project, payload.project_id)
     if project is None:
@@ -99,6 +95,46 @@ def create_space(
     return space
 
 
+@router.get("/{space_id}", response_model=SpaceOut)
+def get_space(
+    space_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> Space:
+    """Torna un espai donat un id"""
+
+    return _visible_space(session, user, space_id)
+
+
+@router.patch("/{space_id}", response_model=SpaceOut)
+def update_space(
+    space_id: int,
+    payload: SpaceUpdateIn,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> Space:
+    """Modifica un espai: nom, tipus o ubicació dins de la jerarquia."""
+
+    space = _visible_space(session, user, space_id)
+
+    if not can_write_space(user, space):
+        raise HTTPException(
+            status_code=403, detail="Només el propietari del projecte pot modificar l'espai"
+        )
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if "parent_id" in data:
+        _check_new_parent(session, space, data["parent_id"])
+
+    for field, value in data.items():
+        setattr(space, field, value)
+
+    session.commit()
+    session.refresh(space)
+    return space
+
+
 @router.get(
     "/{space_id}/readings",
     response_model=list[ReadingSummaryOut] | list[ReadingBucketOut],
@@ -110,7 +146,9 @@ def space_readings(
     start: datetime | None = Query(default=None, alias="from"),
     end: datetime | None = Query(default=None, alias="to"),
     bucket: str | None = Query(default=None, description=f"Un de: {', '.join(BUCKETS)}"),
-    include_descendants: bool = Query(default=False, description="Inclou també els espais continguts"),
+    include_descendants: bool = Query(
+        default=False, description="Inclou també els espais continguts"
+    ),
 ) -> list[dict]:
     """Agrega les lectures dels dispositius d'un espai"""
 
@@ -161,33 +199,60 @@ def space_devices(
     return list(session.scalars(query))
 
 
-@router.patch("/{space_id}", response_model=SpaceOut)
-def update_space(
+@router.put("/{space_id}/devices/{source}/{device_id}", status_code=204)
+def assign_device(
     space_id: int,
-    payload: SpaceUpdateIn,
+    source: str,
+    device_id: str,
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
-) -> Space:
-    """Modifica un espai: nom, tipus o ubicació dins de la jerarquia."""
+) -> None:
+    """Ubica un dispositiu en un espai.
+
+    Dins d'un mateix projecte un dispositiu sols pot estar en un espai: si ja
+    estava en un altre del mateix projecte, es mou. Els espais d'altres
+    projectes no es toquen.
+    """
 
     space = _visible_space(session, user, space_id)
+    device = _visible_device(session, user, source, device_id)
 
-    if not can_write_space(user, space):
+    if not can_assign_device_to_space(user, device, space):
         raise HTTPException(
-            status_code=403, detail="Només el propietari del projecte pot modificar l'espai"
+            status_code=403, detail="No pots ubicar este dispositiu en este espai"
         )
 
-    data = payload.model_dump(exclude_unset=True)
+    for current in list(device.spaces):
+        if current.project_id == space.project_id and current.id != space.id:
+            device.spaces.remove(current)
 
-    if "parent_id" in data:
-        _check_new_parent(session, space, data["parent_id"])
-
-    for field, value in data.items():
-        setattr(space, field, value)
+    if space not in device.spaces:
+        device.spaces.append(space)
 
     session.commit()
-    session.refresh(space)
-    return space
+
+
+@router.delete("/{space_id}/devices/{source}/{device_id}", status_code=204)
+def unassign_device(
+    space_id: int,
+    source: str,
+    device_id: str,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    """Trau un dispositiu de l'espai. Si no hi era, no fa res."""
+
+    space = _visible_space(session, user, space_id)
+    device = _visible_device(session, user, source, device_id)
+
+    if not can_assign_device_to_space(user, device, space):
+        raise HTTPException(
+            status_code=403, detail="No pots modificar la ubicació d'este dispositiu"
+        )
+
+    if space in device.spaces:
+        device.spaces.remove(space)
+        session.commit()
 
 
 def _check_new_parent(session: Session, space: Space, parent_id: int | None) -> None:
@@ -227,3 +292,15 @@ def _visible_space(session: Session, user: User, space_id: int) -> Space:
         raise HTTPException(status_code=404, detail="Espai no trobat")
 
     return space
+
+
+def _visible_device(session: Session, user: User, source: str, device_id: str) -> Device:
+    """Recupera un dispositiu comprovant que l'usuari el pot veure."""
+
+    device = session.get(Device, (source, device_id))
+
+    identities = visible_device_identities(session, user)
+    if device is None or (identities is not None and (source, device_id) not in identities):
+        raise HTTPException(status_code=404, detail="Dispositiu no trobat")
+
+    return device
