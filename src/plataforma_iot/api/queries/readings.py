@@ -26,7 +26,7 @@ def _base_query(space_ids: list[int], start: datetime | None, end: datetime | No
         .join(Unit, SensorType.unit_id == Unit.id)
         .where(
             device_space.c.space_id.in_(space_ids),
-            Reading.sensor_id.is_not(None),
+            Sensor.sensor_type_id.is_not(None),
         )
     )
 

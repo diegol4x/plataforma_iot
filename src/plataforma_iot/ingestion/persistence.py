@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.domain.canonical import CanonicalUplink
+from plataforma_iot.domain.canonical import CanonicalRecord, CanonicalUplink
 from plataforma_iot.domain.device_status import DeviceStatus
 
 from plataforma_iot.models.catalog import SensorType
@@ -23,38 +23,21 @@ def persist(session: Session, uplink: CanonicalUplink) -> None:
 
     time = min(record.time for record in uplink.records)
     db_uplink = Uplink(
-        time = time,
-        received_at = uplink.received_at,
-        source = uplink.source,
-        device_id = uplink.device_id,
-        uplink_metadata = uplink.uplink_metadata,
+        time=time,
+        received_at=uplink.received_at,
+        source=uplink.source,
+        device_id=uplink.device_id,
+        uplink_metadata=uplink.uplink_metadata,
     )
 
     session.add(db_uplink)
     session.flush()
 
     for record in uplink.records:
+        # Una magnitud no catalogada no és motiu per a llençar una mesura
+        # correcta: el sensor es crea igualment i queda pendent.
         sensor_type = _resolve_sensor_type(session, record.name)
-
-        if sensor_type is None:
-            # No es llença una mesura correcta per un error administratiu
-            # reversible: es guarda orfe i s'enllaçarà en catalogar la magnitud.
-            session.add(
-                Reading(
-                    time=record.time,
-                    uplink_id=db_uplink.id,
-                    sensor_id=None,
-                    raw_sensor_name=record.name,
-                    value=record.value,
-                    received_unit=record.unit,
-                    invalid_message=UNCATALOGUED_MAGNITUDE.format(name=record.name),
-                )
-            )
-            continue
-
         sensor = _upsert_sensor(session, uplink, record.name, sensor_type)
-        expected_unit = sensor_type.unit.symbol
-        mismatch = record.unit != expected_unit
 
         session.add(
             Reading(
@@ -62,16 +45,35 @@ def persist(session: Session, uplink: CanonicalUplink) -> None:
                 uplink_id=db_uplink.id,
                 sensor_id=sensor.id,
                 value=record.value,
-                received_unit=record.unit if mismatch else None,
-                invalid_message=(
-                    UNIT_MISMATCH.format(received=record.unit, expected=expected_unit)
-                    if mismatch
-                    else None
-                ),
+                received_unit=_received_unit(record, sensor_type),
+                invalid_message=_invalid_message(record, sensor_type),
             )
         )
+
     device.last_seen = uplink.received_at
     session.commit()
+
+
+def _received_unit(record: CanonicalRecord, sensor_type: SensorType | None) -> str | None:
+    """La unitat sols es guarda si no es pot donar per descomptada (INV-07)."""
+
+    if sensor_type is None:
+        return record.unit
+
+    return record.unit if record.unit != sensor_type.unit.symbol else None
+
+
+def _invalid_message(record: CanonicalRecord, sensor_type: SensorType | None) -> str | None:
+    """Motiu de sospita de la lectura, o None si no n'hi ha cap."""
+
+    if sensor_type is None:
+        return UNCATALOGUED_MAGNITUDE.format(name=record.name)
+
+    if record.unit != sensor_type.unit.symbol:
+        return UNIT_MISMATCH.format(received=record.unit, expected=sensor_type.unit.symbol)
+
+    return None
+
 
 def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
     """Recupera el dispositiu o el dona d'alta com a desprovisionat"""
@@ -83,7 +85,7 @@ def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
         return device
 
     device = Device(
-        source= uplink.source,
+        source=uplink.source,
         device_id=uplink.device_id,
         status=DeviceStatus.UNPROVISIONED,
     )
@@ -92,22 +94,35 @@ def _upsert_device(session: Session, uplink: CanonicalUplink) -> Device:
     session.flush()
     return device
 
+
 def _resolve_sensor_type(session: Session, name: str) -> SensorType | None:
     """Busca la magnitud al catàleg; si no està, torna None"""
 
     return session.scalar(select(SensorType).where(SensorType.code == name))
 
 
-def _upsert_sensor(session: Session, uplink: CanonicalUplink, name: str, sensor_type: SensorType,) -> Sensor:
-    """Recupera el sensor o el crea a partir de la lectura rebuda."""
+def _upsert_sensor(
+    session: Session,
+    uplink: CanonicalUplink,
+    name: str,
+    sensor_type: SensorType | None,
+) -> Sensor:
+    """Recupera el sensor o el crea a partir de la lectura rebuda.
 
-    sensor = session.scalar(
-        select(Sensor).where(
-            Sensor.source == uplink.source,
-            Sensor.device_id == uplink.device_id,
-            Sensor.sensor_type_id == sensor_type.id,
-            )
-        )
+    Si la magnitud no està catalogada, el sensor es busca pel nom cru: és
+    l'únic identificador que tenim fins que algú la done d'alta.
+    """
+    query = select(Sensor).where(
+        Sensor.source == uplink.source,
+        Sensor.device_id == uplink.device_id,
+    )
+
+    if sensor_type is None:
+        query = query.where(Sensor.name == name, Sensor.sensor_type_id.is_(None))
+    else:
+        query = query.where(Sensor.sensor_type_id == sensor_type.id)
+
+    sensor = session.scalar(query)
 
     if sensor is not None:
         return sensor
@@ -116,7 +131,7 @@ def _upsert_sensor(session: Session, uplink: CanonicalUplink, name: str, sensor_
         source=uplink.source,
         device_id=uplink.device_id,
         name=name,
-        sensor_type_id=sensor_type.id,
+        sensor_type_id=sensor_type.id if sensor_type else None,
         active=True,
     )
     session.add(sensor)

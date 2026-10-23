@@ -8,8 +8,7 @@ from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorType
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.api.dependencies import current_user, require_admin
-from plataforma_iot.api.queries.orphans import relink_orphan_readings
-
+from plataforma_iot.api.queries.orphans import catalogue_pending_sensors
 
 router = APIRouter(
     tags=["catalog"],
@@ -79,8 +78,8 @@ def create_sensor_type(payload: SensorTypeIn, session: Session = Depends(get_db)
     session.add(sensor_type)
     session.flush()
 
-    relink_orphan_readings(session, sensor_type)
-
+    catalogue_pending_sensors(session, sensor_type)
+    
     session.commit()
     session.refresh(sensor_type)
     return sensor_type

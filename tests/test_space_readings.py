@@ -274,18 +274,27 @@ def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, sessio
     assert response.status_code == 200
 
 
-def test_orphan_readings_are_excluded(client, admin_auth, session, world):
-    """Una lectura sense sensor no té unitat: no pot entrar en una mitjana."""
+def test_pending_sensor_readings_are_excluded(client, admin_auth, session, world):
+    """Un sensor sense tipus no té unitat: les seues lectures no entren en una mitjana."""
+    pending = Sensor(
+        source="own",
+        device_id="node-00",
+        name="luminosity",
+        sensor_type_id=None,
+        active=True,
+    )
+    session.add(pending)
+    session.flush()
+
     uplink = session.scalar(select(Uplink).limit(1))
     session.add(
         Reading(
             time=START,
             uplink_id=uplink.id,
-            sensor_id=None,
-            raw_sensor_name="luminosity",
+            sensor_id=pending.id,
             value=9999.0,
             received_unit="lx",
-            invalid_message="Magnitud no catalogada",
+            invalid_message="Magnitud no catalogada: 'luminosity'",
         )
     )
     session.flush()
