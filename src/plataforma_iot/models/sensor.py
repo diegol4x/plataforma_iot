@@ -4,7 +4,6 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     ForeignKeyConstraint,
-    Integer,
     String,
     UniqueConstraint,
 )
@@ -37,7 +36,6 @@ class Sensor(Base):
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     device_id: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
-    channel: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sensor_type_id: Mapped[int] = mapped_column(
         ForeignKey("sensor_types.id", ondelete="RESTRICT"), nullable=False

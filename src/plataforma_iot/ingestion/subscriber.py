@@ -25,6 +25,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None) -> None:
 
 
 def on_message(client, userdata, msg: mqtt.MQTTMessage) -> None:
+    print(f"Rebut: {msg.topic}")
     received_at = datetime.now(timezone.utc)
     router: Router = userdata
 

@@ -52,11 +52,15 @@ class Uplink(Base):
 
 
 class Reading(Base):
-    """Valor puntual observat per un sensor."""
+    """Valor puntual observat per un sensor.
+    `sensor_id` és nullable ja que permetem enregistrar mesures de sensortypes no catalogats,
+    indicant el motiu d'invalidessa, per no descartar missatge per errors administratius.
+    """
 
     __tablename__ = "readings"
     __table_args__ = (
         Index("ix_readings_sensor_time", "sensor_id","time"),
+        Index("ix_readings_raw_sensor_name", "raw_sensor_name"),
     )
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
@@ -64,13 +68,15 @@ class Reading(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     uplink_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    sensor_id: Mapped[int] = mapped_column(
-        ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False
+    sensor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sensors.id", ondelete="CASCADE"), nullable=True
     )
     value: Mapped[float] = mapped_column(Float, nullable=False)
     received_unit: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    invalid_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_sensor_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    sensor: Mapped["Sensor"] = relationship()
+    sensor: Mapped["Sensor | None"] = relationship()
 
     def __repr__(self) -> str:
         return f"Reading(sensor_id={self.sensor_id!r}, value={self.value!r}, time={self.time!r})"

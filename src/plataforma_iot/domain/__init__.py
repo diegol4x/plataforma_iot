@@ -17,6 +17,5 @@ __all__ = [
     "MissingField",
     "UnknownTopic",
     "UnreadablePayload",
-    "UnknownSensorType",
     "UnknownUnit",
 ]
