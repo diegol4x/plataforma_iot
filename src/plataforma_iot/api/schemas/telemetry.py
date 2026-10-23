@@ -14,10 +14,15 @@ class ReadingOut(OutSchema):
     id: UUID
     time: datetime
     uplink_id: UUID
-    sensor_id: int
+    sensor_id: int | None
+    raw_sensor_name: str | None
     value: float
-    unit: str = Field(validation_alias=AliasPath("sensor", "sensor_type", "unit", "symbol"))
+    unit: str | None = Field(
+        default=None,
+        validation_alias=AliasPath("sensor", "sensor_type", "unit", "symbol"),
+    )
     received_unit: str | None
+    invalid_message: str | None
 
 class ReadingSummaryOut(BaseModel):
     """Resum d'una magnitud en un rang"""
