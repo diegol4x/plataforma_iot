@@ -24,7 +24,10 @@ def _base_query(space_ids: list[int], start: datetime | None, end: datetime | No
         )
         .join(SensorType, Sensor.sensor_type_id == SensorType.id)
         .join(Unit, SensorType.unit_id == Unit.id)
-        .where(Device.space_id.in_(space_ids))
+        .where(
+            Device.space_id.in_(space_ids),
+            Reading.sensor_id.is_not(None),
+        )
     )
 
     if start is not None:
@@ -33,7 +36,6 @@ def _base_query(space_ids: list[int], start: datetime | None, end: datetime | No
         query = query.where(Reading.time < end)
 
     return query
-
 
 
 

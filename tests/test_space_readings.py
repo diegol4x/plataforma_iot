@@ -1,6 +1,7 @@
 """Proves de les agregacions per espai"""
 
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import select
 
 import pytest
 
@@ -275,3 +276,24 @@ def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, sessio
     )
 
     assert response.status_code == 200
+
+def test_orphan_readings_are_excluded(client, viewer_auth, session, world):
+    """Una lectura sense sensor no té unitat: no pot entrar en una mitjana."""
+    uplink = session.scalar(select(Uplink).limit(1))
+    session.add(
+        Reading(
+            time=START,
+            uplink_id=uplink.id,
+            sensor_id=None,
+            raw_sensor_name="luminosity",
+            value=9999.0,
+            received_unit="lx",
+            invalid_message="Magnitud no catalogada",
+        )
+    )
+    session.flush()
+
+    response = client.get(f"/spaces/{world['room']}/readings", headers=viewer_auth)
+
+    assert response.json()[0]["count"] == 6
+    assert response.json()[0]["max"] == 25.0
