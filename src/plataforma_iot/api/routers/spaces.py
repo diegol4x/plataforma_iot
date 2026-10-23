@@ -15,7 +15,7 @@ from plataforma_iot.api.schemas import (
     DeviceOut,
 )
 from plataforma_iot.db import get_db
-from plataforma_iot.models.space import Space
+from plataforma_iot.models.space import Space, device_space
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.project import Project
 from plataforma_iot.models.user import User
@@ -149,7 +149,12 @@ def space_devices(
 
     query = (
         select(Device)
-        .where(Device.space_id.in_(space_ids))
+        .join(
+            device_space,
+            (Device.source == device_space.c.source)
+            & (Device.device_id == device_space.c.device_id),
+        )
+        .where(device_space.c.space_id.in_(space_ids))
         .order_by(Device.source, Device.device_id)
     )
 

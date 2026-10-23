@@ -6,10 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from plataforma_iot.models.catalog import SensorType, Unit
-from plataforma_iot.models.device import Device
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.telemetry import Reading
-from plataforma_iot.models.space import Space
+from plataforma_iot.models.space import Space, device_space
 
 BUCKETS = ("hour", "day")
 
@@ -19,13 +18,14 @@ def _base_query(space_ids: list[int], start: datetime | None, end: datetime | No
         select(Reading)
         .join(Sensor, Reading.sensor_id == Sensor.id)
         .join(
-            Device,
-            (Sensor.source == Device.source) & (Sensor.device_id == Device.device_id),
+            device_space,
+            (Sensor.source == device_space.c.source)
+            & (Sensor.device_id == device_space.c.device_id),
         )
         .join(SensorType, Sensor.sensor_type_id == SensorType.id)
         .join(Unit, SensorType.unit_id == Unit.id)
         .where(
-            Device.space_id.in_(space_ids),
+            device_space.c.space_id.in_(space_ids),
             Reading.sensor_id.is_not(None),
         )
     )

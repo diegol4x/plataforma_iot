@@ -43,9 +43,11 @@ def world(session, project) -> dict:
         source="own",
         device_id="node-00",
         status=DeviceStatus.ACTIVE,
-        space_id=room.id,
     )
     session.add(device)
+    session.flush()
+
+    room.devices.append(device)
     session.flush()
 
     sensor = Sensor(

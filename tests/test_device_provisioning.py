@@ -6,7 +6,6 @@ from plataforma_iot.api.security import hash_password
 from plataforma_iot.domain.device_status import DeviceStatus
 from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.device import Device
-from plataforma_iot.models.space import Space
 from plataforma_iot.models.user import User
 
 PASSWORD = "contrasenya-de-proves"
@@ -37,17 +36,8 @@ def device(session) -> Device:
     item = Device(
         source="own",
         device_id="node-00",
-        type="node",
         status=DeviceStatus.UNPROVISIONED,
     )
-    session.add(item)
-    session.flush()
-    return item
-
-
-@pytest.fixture
-def space(session, project) -> Space:
-    item = Space(name="Saló", type="space", project_id=project.id)
     session.add(item)
     session.flush()
     return item
@@ -60,20 +50,6 @@ def test_provisioning_activates_the_device(client, auth, device):
     body = response.json()
     assert body["status"] == "active"
     assert body["name"] == "Node de proves"
-
-
-def test_provisioning_can_assign_a_space(client, auth, device, space):
-    response = client.patch(
-        PATH, json={"name": "Node", "space_id": space.id}, headers=auth
-    )
-
-    assert response.json()["space_id"] == space.id
-
-
-def test_rejects_an_unknown_space(client, auth, device):
-    response = client.patch(PATH, json={"name": "Node", "space_id": 9999}, headers=auth)
-
-    assert response.status_code == 422
 
 
 def test_an_unprovisioned_device_cannot_go_to_another_state(client, auth, device):
@@ -119,29 +95,6 @@ def test_a_silent_device_cannot_be_reactivated_by_hand(client, auth, session, de
     assert response.status_code == 409
 
 
-def test_an_omitted_space_is_not_cleared(client, auth, session, device, space):
-    """Un PATCH modifica el que se li envia, no el que s'omet"""
-    device.status = DeviceStatus.ACTIVE
-    device.space_id = space.id
-    session.flush()
-
-    response = client.patch(PATH, json={"name": "Nom nou"}, headers=auth)
-
-    assert response.json()["space_id"] == space.id
-
-
-def test_a_null_space_is_cleared(client, auth, session, device, space):
-    device.status = DeviceStatus.ACTIVE
-    device.space_id = space.id
-    session.flush()
-
-    response = client.patch(
-        PATH, json={"name": "Node", "space_id": None}, headers=auth
-    )
-
-    assert response.json()["space_id"] is None
-
-
 def test_rejects_an_unknown_field(client, auth, device):
     response = client.patch(
         PATH, json={"name": "Node", "last_seen": "2026-01-01T00:00:00Z"}, headers=auth
@@ -154,3 +107,13 @@ def test_rejects_an_unknown_device(client, auth):
     response = client.patch("/devices/own/no-existix", json={"name": "X"}, headers=auth)
 
     assert response.status_code == 404
+
+def test_an_omitted_field_is_not_cleared(client, admin_auth, session, device):
+    """Un PATCH modifica el que se li envia, no el que s'omet"""
+    device.status = DeviceStatus.ACTIVE
+    device.type = "heltec-v3"
+    session.flush()
+
+    response = client.patch(PATH, json={"name": "Nom nou"}, headers=admin_auth)
+
+    assert response.json()["type"] == "heltec-v3"

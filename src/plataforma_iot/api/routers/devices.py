@@ -10,7 +10,6 @@ from plataforma_iot.api.schemas import DeviceOut, DeviceProvisionIn
 from plataforma_iot.db import get_db
 from plataforma_iot.domain.device_status import DeviceStatus
 from plataforma_iot.models.device import Device
-from plataforma_iot.models.space import Space
 from plataforma_iot.models.user import User
 
 
@@ -95,9 +94,6 @@ def provision_device(
             status_code=409,
             detail=f"L'estat '{device.status.value}' no es pot canviar manualment",
         )
-
-    if data.get("space_id") is not None and session.get(Space, data["space_id"]) is None:
-        raise HTTPException(status_code=422, detail="Espai no trobat")
 
     for field, value in data.items():
         setattr(device, field, value)

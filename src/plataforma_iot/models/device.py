@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     DateTime,
-    ForeignKey,
     Integer,
     String,
     Enum as SAEnum,
@@ -16,14 +15,20 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from plataforma_iot.domain.device_status import DeviceStatus
 from plataforma_iot.models.base import Base
-from plataforma_iot.models.space import Space
 
 if TYPE_CHECKING:
     from plataforma_iot.models.sensor import Sensor
+    from plataforma_iot.models.space import Space
     from plataforma_iot.models.workgroup import Workgroup
 
+
 class Device(Base):
-    """Dispositiu desplegat que envia telemetria"""
+    """Dispositiu desplegat que envia telemetria.
+
+    Un dispositiu pot estar en diversos espais: el mateix lloc físic es pot
+    representar en projectes distints amb nomenclatures distintes. Dins d'un
+    mateix projecte, sols pot estar en un espai.
+    """
 
     __tablename__ = "devices"
 
@@ -43,17 +48,15 @@ class Device(Base):
         nullable=False,
         default=DeviceStatus.UNPROVISIONED,
     )
-    battery_level: Mapped[int|None] = mapped_column(Integer, nullable=True)
+    battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_seen: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    space_id: Mapped[int | None] = mapped_column(
-        ForeignKey("spaces.id", ondelete="SET NULL"),nullable=True
+
+    spaces: Mapped[list["Space"]] = relationship(
+        secondary="device_space", back_populates="devices"
     )
-
-    space: Mapped["Space | None"] = relationship()
     sensors: Mapped[list["Sensor"]] = relationship(back_populates="device")
-
     workgroups: Mapped[list["Workgroup"]] = relationship(
         secondary="device_workgroup", back_populates="devices"
     )

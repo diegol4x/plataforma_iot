@@ -1,6 +1,6 @@
 """Descripció de la classe"""
 
-from sqlalchemy import ForeignKey, String, Enum as SAEnum
+from sqlalchemy import ForeignKey, String, Enum as SAEnum, Column, ForeignKeyConstraint, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from plataforma_iot.models.base import Base
@@ -8,7 +8,21 @@ from plataforma_iot.domain.space_type import SpaceType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from plataforma_iot.models.device import Device
     from plataforma_iot.models.project import Project
+
+device_space = Table(
+    "device_space",
+    Base.metadata,
+    Column("source", String(32), primary_key=True),
+    Column("device_id", String(64), primary_key=True),
+    Column("space_id", ForeignKey("spaces.id", ondelete="CASCADE"), primary_key=True),
+    ForeignKeyConstraint(
+        ["source", "device_id"],
+        ["devices.source", "devices.device_id"],
+        ondelete="CASCADE",
+    ),
+)
 
 class Space(Base):
     """Ubicació física o lògica: edifici, sala, planta, ..."""
@@ -40,6 +54,10 @@ class Space(Base):
     )
 
     project: Mapped["Project"] = relationship(back_populates="spaces")
+
+    devices: Mapped[list["Device"]] = relationship(
+        secondary=device_space, back_populates="spaces"
+    )
 
     def __repr__(self) -> str:
         return f"Space(name={self.name!r}, type={self.type!r})"
