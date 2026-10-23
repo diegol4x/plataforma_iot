@@ -5,14 +5,12 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from plataforma_iot.api.schemas import SensorOut
-from plataforma_iot.api.dependencies import current_user, require_admin
+from plataforma_iot.api.dependencies import current_user
 from plataforma_iot.api.permissions import visible_device_identities
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.user import User
-from plataforma_iot.api.dependencies import current_user, require_admin
-
 
 router = APIRouter(
     prefix="/sensors",
@@ -35,6 +33,10 @@ def list_sensors(
     source: str | None = None,
     device_id: str | None = None,
     active: bool | None = None,
+    pending: bool | None = Query(
+        default=None,
+        description="True: sols sensors amb la magnitud sense catalogar",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[Sensor]:
@@ -52,6 +54,10 @@ def list_sensors(
         query = query.where(Sensor.device_id == device_id)
     if active is not None:
         query = query.where(Sensor.active == active)
+    if pending is True:
+        query = query.where(Sensor.sensor_type_id.is_(None))
+    elif pending is False:
+        query = query.where(Sensor.sensor_type_id.is_not(None))
 
     return list(session.scalars(query.limit(limit).offset(offset)))
 

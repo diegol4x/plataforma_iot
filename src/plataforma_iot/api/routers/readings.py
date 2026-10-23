@@ -11,7 +11,7 @@ from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.telemetry import Reading
-from plataforma_iot.api.dependencies import current_user, require_admin
+from plataforma_iot.api.dependencies import current_user
 from plataforma_iot.api.permissions import visible_device_identities
 from plataforma_iot.models.user import User
 
@@ -66,5 +66,5 @@ def list_readings(
         query = query.where(Reading.time >= since)
     if until is not None:
         query = query.where(Reading.time < until)
-
+    
     return list(session.scalars(query.limit(limit).offset(offset)))
