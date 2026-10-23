@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     Index,
+    UniqueConstraint,
 )
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -31,6 +32,7 @@ class Uplink(Base):
             ["devices.source", "devices.device_id"],
             ondelete="CASCADE",
         ),
+        UniqueConstraint("id", name="uq_uplinks_id"),
     )
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
@@ -67,7 +69,11 @@ class Reading(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    uplink_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    uplink_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("uplinks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     sensor_id: Mapped[int | None] = mapped_column(
         ForeignKey("sensors.id", ondelete="CASCADE"), nullable=True
     )
@@ -77,6 +83,7 @@ class Reading(Base):
     raw_sensor_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     sensor: Mapped["Sensor | None"] = relationship()
+    uplink: Mapped["Uplink"] = relationship()
 
     def __repr__(self) -> str:
         return f"Reading(sensor_id={self.sensor_id!r}, value={self.value!r}, time={self.time!r})"

@@ -8,6 +8,7 @@ from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorType
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.api.dependencies import current_role, require_admin
+from plataforma_iot.api.queries.orphans import relink_orphan_readings
 
 
 router = APIRouter(
@@ -15,7 +16,7 @@ router = APIRouter(
     dependencies=[Depends(current_role)],
     )
 
-@router.get("/units", response_model=list[UnitIn])
+@router.get("/units", response_model=list[UnitOut])
 def list_units(session: Session = Depends(get_db)) -> list[Unit]:
     """Torna les unitats del catàleg"""
 
@@ -76,6 +77,10 @@ def create_sensor_type(payload: SensorTypeIn, session: Session = Depends(get_db)
     )
 
     session.add(sensor_type)
+    session.flush()
+
+    relink_orphan_readings(session, sensor_type)
+
     session.commit()
     session.refresh(sensor_type)
     return sensor_type
