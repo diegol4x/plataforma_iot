@@ -5,9 +5,12 @@ from sqlalchemy import select
 
 from plataforma_iot.api.security import hash_password
 from plataforma_iot.domain.user_role import UserRole
+from plataforma_iot.domain.device_status import DeviceStatus
 from plataforma_iot.models.project import Project
 from plataforma_iot.models.user import User
 from plataforma_iot.models.workgroup import Workgroup
+from plataforma_iot.models.device import Device
+from plataforma_iot.models.space import Space
 
 TEST_PASSWORD = "contrasenya-de-proves"
 
@@ -180,3 +183,55 @@ def test_another_member_cannot_create_spaces_there(client, session, workgroup):
     )
 
     assert response.status_code == 403
+
+def test_a_device_can_be_in_equivalent_spaces_of_two_projects(
+    client, admin_auth, session, workgroup
+):
+    """El mateix saló físic, representat en dos projectes: un sol sensor als dos."""
+    device = Device(source="own", device_id="node-00", status=DeviceStatus.ACTIVE)
+    session.add(device)
+    session.flush()
+
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    first = Project(name="Estudi A", workgroup_id=workgroup.id, owner_id=owner.id)
+    second = Project(name="Estudi B", workgroup_id=workgroup.id, owner_id=owner.id)
+    session.add_all([first, second])
+    session.flush()
+
+    salon_a = Space(name="Saló", type="space", project_id=first.id)
+    salon_b = Space(name="Sala d'estar", type="space", project_id=second.id)
+    session.add_all([salon_a, salon_b])
+    session.flush()
+
+    client.put(f"/spaces/{salon_a.id}/devices/own/node-00", headers=admin_auth)
+    client.put(f"/spaces/{salon_b.id}/devices/own/node-00", headers=admin_auth)
+
+    in_a = client.get(f"/spaces/{salon_a.id}/devices", headers=admin_auth)
+    in_b = client.get(f"/spaces/{salon_b.id}/devices", headers=admin_auth)
+    assert len(in_a.json()) == 1
+    assert len(in_b.json()) == 1
+
+
+def test_moving_within_a_project_replaces_the_previous_space(
+    client, admin_auth, session, workgroup
+):
+    """Dins d'un projecte un dispositiu sols està en un espai: el PUT el mou."""
+    device = Device(source="own", device_id="node-00", status=DeviceStatus.ACTIVE)
+    session.add(device)
+    session.flush()
+
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    project = Project(name="Estudi", workgroup_id=workgroup.id, owner_id=owner.id)
+    session.add(project)
+    session.flush()
+
+    kitchen = Space(name="Cuina", type="space", project_id=project.id)
+    bedroom = Space(name="Habitació", type="space", project_id=project.id)
+    session.add_all([kitchen, bedroom])
+    session.flush()
+
+    client.put(f"/spaces/{kitchen.id}/devices/own/node-00", headers=admin_auth)
+    client.put(f"/spaces/{bedroom.id}/devices/own/node-00", headers=admin_auth)
+
+    assert client.get(f"/spaces/{kitchen.id}/devices", headers=admin_auth).json() == []
+    assert len(client.get(f"/spaces/{bedroom.id}/devices", headers=admin_auth).json()) == 1
