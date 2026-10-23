@@ -149,3 +149,34 @@ def test_an_admin_can_edit_any_project(client, session, workgroup, admin_auth):
     )
 
     assert response.status_code == 200
+
+def test_the_owner_can_create_spaces_in_their_project(client, session, workgroup):
+    auth = _auth(client, session, "membre", workgroup)
+    project = client.post(
+        "/projects", json={"name": "Pilot", "workgroup_id": workgroup.id}, headers=auth
+    ).json()
+
+    response = client.post(
+        "/spaces",
+        json={"name": "Sala", "type": "space", "project_id": project["id"]},
+        headers=auth,
+    )
+
+    assert response.status_code == 201
+
+
+def test_another_member_cannot_create_spaces_there(client, session, workgroup):
+    owner_auth = _auth(client, session, "propietari", workgroup)
+    project = client.post(
+        "/projects", json={"name": "Pilot", "workgroup_id": workgroup.id}, headers=owner_auth
+    ).json()
+
+    other_auth = _auth(client, session, "company", workgroup)
+
+    response = client.post(
+        "/spaces",
+        json={"name": "Sala", "type": "space", "project_id": project["id"]},
+        headers=other_auth,
+    )
+
+    assert response.status_code == 403

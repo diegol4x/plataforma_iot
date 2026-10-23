@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import current_user, require_admin
+from plataforma_iot.api.dependencies import current_user
 from plataforma_iot.api.schemas import (
     SpaceIn, 
     SpaceOut, 
@@ -20,7 +20,7 @@ from plataforma_iot.models.device import Device
 from plataforma_iot.models.project import Project
 from plataforma_iot.models.user import User
 from plataforma_iot.api.queries.readings import BUCKETS, series, summarize, descendant_ids
-from plataforma_iot.api.permissions import visible_project_ids
+from plataforma_iot.api.permissions import can_write_space, can_write_project, visible_project_ids
 
 
 router = APIRouter(
@@ -57,12 +57,25 @@ def get_space(
     return _visible_space(session, user, space_id)
 
 
-@router.post("", response_model=SpaceOut, status_code=201, dependencies=[Depends(require_admin)])
-def create_space(payload: SpaceIn, session: Session = Depends(get_db)) -> Space:
-    """Dona d'alta un espai dins d'un projecte"""
+@router.post("", response_model=SpaceOut, status_code=201)
+def create_space(
+    payload: SpaceIn,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> Space:
+    """Dona d'alta un espai dins d'un projecte.
 
-    if session.get(Project, payload.project_id) is None:
+    Qui el crea ha de ser propietari del projecte: un espai no té propietat
+    pròpia, la hereta del projecte que el conté"""
+
+    project = session.get(Project, payload.project_id)
+    if project is None:
         raise HTTPException(status_code=422, detail="El projecte no existix")
+
+    if not can_write_project(user, project):
+        raise HTTPException(
+            status_code=403, detail="Només el propietari del projecte pot crear-hi espais"
+        )
 
     if payload.parent_id is not None:
         parent = session.get(Space, payload.parent_id)
@@ -143,11 +156,7 @@ def space_devices(
     return list(session.scalars(query))
 
 
-@router.patch(
-    "/{space_id}",
-    response_model=SpaceOut,
-    dependencies=[Depends(require_admin)],
-)
+@router.patch("/{space_id}", response_model=SpaceOut)
 def update_space(
     space_id: int,
     payload: SpaceUpdateIn,
@@ -157,6 +166,11 @@ def update_space(
     """Modifica un espai: nom, tipus o ubicació dins de la jerarquia."""
 
     space = _visible_space(session, user, space_id)
+
+    if not can_write_space(user, space):
+        raise HTTPException(
+            status_code=403, detail="Només el propietari del projecte pot modificar l'espai"
+        )
 
     data = payload.model_dump(exclude_unset=True)
 
