@@ -5,36 +5,14 @@ from sqlalchemy import select
 
 import pytest
 
-from plataforma_iot.api.security import hash_password
 from plataforma_iot.domain.device_status import DeviceStatus
-from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.space import Space
 from plataforma_iot.models.telemetry import Reading, Uplink
-from plataforma_iot.models.user import User
 
-PASSWORD = "contrasenya-de-proves"
 START = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
-
-
-@pytest.fixture
-def auth(client, session) -> dict:
-    """Header d'autenticació d'un lector"""
-    session.add(
-        User(
-            username="lector",
-            password_hash=hash_password(PASSWORD),
-            role=UserRole.VIEWER,
-        )
-    )
-    session.flush()
-
-    response = client.post(
-        "/auth/token", data={"username": "lector", "password": PASSWORD}
-    )
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 @pytest.fixture
@@ -105,8 +83,8 @@ def world(session, project) -> dict:
     }
 
 
-def test_summarizes_the_readings_of_a_space(client, auth, world):
-    response = client.get(f"/spaces/{world['room']}/readings", headers=auth)
+def test_summarizes_the_readings_of_a_space(client, admin_auth, world):
+    response = client.get(f"/spaces/{world['room']}/readings", headers=admin_auth)
 
     assert response.status_code == 200
     summary = response.json()
@@ -121,27 +99,27 @@ def test_summarizes_the_readings_of_a_space(client, auth, world):
     }
 
 
-def test_a_parent_has_no_readings_of_its_own(client, auth, world):
-    response = client.get(f"/spaces/{world['building']}/readings", headers=auth)
+def test_a_parent_has_no_readings_of_its_own(client, admin_auth, world):
+    response = client.get(f"/spaces/{world['building']}/readings", headers=admin_auth)
 
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_descendants_are_included_on_request(client, auth, world):
+def test_descendants_are_included_on_request(client, admin_auth, world):
     response = client.get(
         f"/spaces/{world['building']}/readings",
         params={"include_descendants": True},
-        headers=auth,
+        headers=admin_auth,
     )
 
     assert response.status_code == 200
     assert response.json()[0]["count"] == 6
 
 
-def test_groups_the_readings_by_hour(client, auth, world):
+def test_groups_the_readings_by_hour(client, admin_auth, world):
     response = client.get(
-        f"/spaces/{world['room']}/readings", params={"bucket": "hour"}, headers=auth
+        f"/spaces/{world['room']}/readings", params={"bucket": "hour"}, headers=admin_auth
     )
 
     assert response.status_code == 200
@@ -151,58 +129,66 @@ def test_groups_the_readings_by_hour(client, auth, world):
     assert buckets[0]["avg"] == 20.5
 
 
-def test_filters_by_date_range(client, auth, world):
+def test_filters_by_date_range(client, admin_auth, world):
     response = client.get(
         f"/spaces/{world['room']}/readings",
         params={"from": START.isoformat(), "to": (START + timedelta(hours=1)).isoformat()},
-        headers=auth,
+        headers=admin_auth,
     )
 
     assert response.json()[0]["count"] == 2
 
 
-def test_rejects_an_unsupported_bucket(client, auth, world):
+def test_rejects_an_unsupported_bucket(client, admin_auth, world):
     response = client.get(
-        f"/spaces/{world['room']}/readings", params={"bucket": "decade"}, headers=auth
+        f"/spaces/{world['room']}/readings", params={"bucket": "decade"}, headers=admin_auth
     )
 
     assert response.status_code == 422
 
 
-def test_rejects_an_inverted_range(client, auth, world):
+def test_rejects_an_inverted_range(client, admin_auth, world):
     response = client.get(
         f"/spaces/{world['room']}/readings",
         params={"from": START.isoformat(), "to": (START - timedelta(hours=1)).isoformat()},
-        headers=auth,
+        headers=admin_auth,
     )
 
     assert response.status_code == 422
 
 
-def test_rejects_an_unknown_space(client, auth, world):
-    assert client.get("/spaces/9999/readings", headers=auth).status_code == 404
+def test_rejects_an_unknown_space(client, admin_auth, world):
+    assert client.get("/spaces/9999/readings", headers=admin_auth).status_code == 404
 
-def test_lists_the_devices_of_a_space(client, auth, world):
-    response = client.get(f"/spaces/{world['room']}/devices", headers=auth)
+
+def test_lists_the_devices_of_a_space(client, admin_auth, world):
+    response = client.get(f"/spaces/{world['room']}/devices", headers=admin_auth)
 
     assert response.status_code == 200
     assert [d["device_id"] for d in response.json()] == ["node-00"]
 
 
-def test_a_parent_has_no_devices_of_its_own(client, auth, world):
-    response = client.get(f"/spaces/{world['building']}/devices", headers=auth)
+def test_a_parent_has_no_devices_of_its_own(client, admin_auth, world):
+    response = client.get(f"/spaces/{world['building']}/devices", headers=admin_auth)
 
     assert response.json() == []
 
 
-def test_descendant_devices_are_included_on_request(client, auth, world):
+def test_descendant_devices_are_included_on_request(client, admin_auth, world):
     response = client.get(
         f"/spaces/{world['building']}/devices",
         params={"include_descendants": True},
-        headers=auth,
+        headers=admin_auth,
     )
 
     assert len(response.json()) == 1
+
+
+def test_a_viewer_without_groups_sees_no_spaces(client, viewer_auth, world):
+    """Sense grups no hi ha projectes visibles, i sense projectes no hi ha espais."""
+    assert client.get("/spaces", headers=viewer_auth).json() == []
+    assert client.get(f"/spaces/{world['room']}", headers=viewer_auth).status_code == 404
+
 
 def test_renames_a_space(client, admin_auth, world):
     response = client.patch(
@@ -259,6 +245,7 @@ def test_an_omitted_field_is_not_changed(client, admin_auth, world):
 
     assert response.json()["parent_id"] == world["floor"]
 
+
 def test_rejects_an_indirect_cycle(client, admin_auth, world):
     """Moure la planta dins del saló: el cicle no és amb el pare directe, sinó amb un net."""
     response = client.patch(
@@ -268,6 +255,7 @@ def test_rejects_an_indirect_cycle(client, admin_auth, world):
     )
 
     assert response.status_code == 422
+
 
 def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, session, world):
     """Un espai que no és descendent sí que pot ser el nou pare."""
@@ -283,7 +271,8 @@ def test_allows_moving_a_space_under_an_unrelated_one(client, admin_auth, sessio
 
     assert response.status_code == 200
 
-def test_orphan_readings_are_excluded(client, viewer_auth, session, world):
+
+def test_orphan_readings_are_excluded(client, admin_auth, session, world):
     """Una lectura sense sensor no té unitat: no pot entrar en una mitjana."""
     uplink = session.scalar(select(Uplink).limit(1))
     session.add(
@@ -299,7 +288,7 @@ def test_orphan_readings_are_excluded(client, viewer_auth, session, world):
     )
     session.flush()
 
-    response = client.get(f"/spaces/{world['room']}/readings", headers=viewer_auth)
+    response = client.get(f"/spaces/{world['room']}/readings", headers=admin_auth)
 
     assert response.json()[0]["count"] == 6
     assert response.json()[0]["max"] == 25.0
