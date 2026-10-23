@@ -9,7 +9,8 @@ from plataforma_iot.api.routers import (
     discards, 
     catalog, 
     auth, 
-    spaces
+    spaces,
+    workgroup
     )
 
 app = FastAPI(title="Plataforma IoT", version="0.1.0")
@@ -21,3 +22,4 @@ app.include_router(discards.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
 app.include_router(spaces.router)
+app.include_router(workgroup.router)
