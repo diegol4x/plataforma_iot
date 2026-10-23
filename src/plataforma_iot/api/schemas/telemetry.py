@@ -14,8 +14,7 @@ class ReadingOut(OutSchema):
     id: UUID
     time: datetime
     uplink_id: UUID
-    sensor_id: int | None
-    raw_sensor_name: str | None
+    sensor_id: int
     value: float
     unit: str | None = Field(
         default=None,
