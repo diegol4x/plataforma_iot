@@ -20,6 +20,7 @@ from plataforma_iot.models.space import Space
 
 if TYPE_CHECKING:
     from plataforma_iot.models.sensor import Sensor
+    from plataforma_iot.models.workgroup import Workgroup
 
 class Device(Base):
     """Dispositiu desplegat que envia telemetria"""
@@ -52,6 +53,10 @@ class Device(Base):
 
     space: Mapped["Space | None"] = relationship()
     sensors: Mapped[list["Sensor"]] = relationship(back_populates="device")
+
+    workgroups: Mapped[list["Workgroup"]] = relationship(
+        secondary="device_workgroup", back_populates="devices"
+    )
 
     def __repr__(self) -> str:
         return (

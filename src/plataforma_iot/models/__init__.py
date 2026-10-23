@@ -12,5 +12,6 @@ from plataforma_iot.models.sensor import Sensor
 from plataforma_iot.models.space import Space
 from plataforma_iot.models.telemetry import Uplink, Reading, Discard
 from plataforma_iot.models.user import User
+from plataforma_iot.models.workgroup import Workgroup
 
-__all__ = ["Base", "Device", "Discard", "Reading", "Sensor", "SensorType", "Space", "Unit", "Uplink", "User",]
+__all__ = ["Base", "Device", "Discard", "Reading", "Sensor", "SensorType", "Space", "Unit", "Uplink", "User", "Workgroup"]
