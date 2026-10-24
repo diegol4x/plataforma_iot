@@ -117,3 +117,35 @@ def test_an_omitted_field_is_not_cleared(client, admin_auth, session, device):
     response = client.patch(PATH, json={"name": "Nom nou"}, headers=admin_auth)
 
     assert response.json()["type"] == "heltec-v3"
+
+def test_a_device_can_be_retired(client, auth, session, device):
+    device.status = DeviceStatus.ACTIVE
+    session.flush()
+
+    response = client.patch(
+        PATH, json={"name": "Node", "status": "retired"}, headers=auth
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "retired"
+
+
+def test_an_unprovisioned_device_cannot_be_retired(client, auth, device):
+    """Retirar el que ningú ha reclamat no vol dir res."""
+    response = client.patch(
+        PATH, json={"name": "Node", "status": "retired"}, headers=auth
+    )
+
+    assert response.status_code == 409
+
+
+def test_a_retired_device_cannot_be_reactivated_by_hand(client, auth, session, device):
+    """La retirada no té tornada: si torna a servici, es provisiona de nou."""
+    device.status = DeviceStatus.RETIRED
+    session.flush()
+
+    response = client.patch(
+        PATH, json={"name": "Node", "status": "active"}, headers=auth
+    )
+
+    assert response.status_code == 409

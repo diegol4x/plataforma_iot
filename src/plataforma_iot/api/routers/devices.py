@@ -90,10 +90,16 @@ def provision_device(
             )
         device.status = DeviceStatus.ACTIVE
     elif "status" in payload.model_fields_set:
-        raise HTTPException(
-            status_code=409,
-            detail=f"L'estat '{device.status.value}' no es pot canviar manualment",
-        )
+        if new_status is not DeviceStatus.RETIRED:
+            raise HTTPException(
+                status_code=409,
+                detail="L'únic canvi manual d'estat és la retirada",
+            )
+        if device.status is DeviceStatus.RETIRED:
+            raise HTTPException(
+                status_code=409, detail="El dispositiu ja està retirat"
+            )
+        device.status = DeviceStatus.RETIRED
 
     for field, value in data.items():
         setattr(device, field, value)
