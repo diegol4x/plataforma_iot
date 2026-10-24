@@ -14,6 +14,7 @@ from plataforma_iot.models.telemetry import Reading, Uplink
 
 UNCATALOGUED_MAGNITUDE = "Magnitud no catalogada: {name!r}"
 UNIT_MISMATCH = "Unitat rebuda ({received!r}) distinta de la del tipus ({expected!r})"
+INACTIVE_SENSOR = "Sensor desactivat"
 
 
 def persist(session: Session, uplink: CanonicalUplink) -> None:
@@ -46,7 +47,7 @@ def persist(session: Session, uplink: CanonicalUplink) -> None:
                 sensor_id=sensor.id,
                 value=record.value,
                 received_unit=_received_unit(record, sensor_type),
-                invalid_message=_invalid_message(record, sensor_type),
+                invalid_message=_invalid_message(record, sensor, sensor_type),
             )
         )
 
@@ -63,8 +64,13 @@ def _received_unit(record: CanonicalRecord, sensor_type: SensorType | None) -> s
     return record.unit if record.unit != sensor_type.unit.symbol else None
 
 
-def _invalid_message(record: CanonicalRecord, sensor_type: SensorType | None) -> str | None:
+def _invalid_message(
+    record: CanonicalRecord, sensor: Sensor, sensor_type: SensorType | None
+) -> str | None:
     """Motiu de sospita de la lectura, o None si no n'hi ha cap."""
+
+    if not sensor.active:
+        return INACTIVE_SENSOR
 
     if sensor_type is None:
         return UNCATALOGUED_MAGNITUDE.format(name=record.name)

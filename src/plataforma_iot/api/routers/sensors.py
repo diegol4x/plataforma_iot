@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
-from plataforma_iot.api.schemas import SensorOut
-from plataforma_iot.api.dependencies import current_user
+from plataforma_iot.api.schemas import SensorOut, SensorUpdateIn
+from plataforma_iot.api.dependencies import current_user, require_admin
 from plataforma_iot.api.permissions import visible_device_identities
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
@@ -78,4 +78,28 @@ def get_sensor(
     ):
         raise HTTPException(status_code=404, detail="Sensor no trobat")
 
+    return sensor
+
+@router.patch("/{sensor_id}", response_model=SensorOut)
+def update_sensor(
+    sensor_id: int,
+    payload: SensorUpdateIn,
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_db),
+) -> Sensor:
+    """Modifica el nom d'un sensor o l'activa i el desactiva"""
+
+    sensor = session.scalar(_base_query().where(Sensor.id == sensor_id))
+
+    identities = visible_device_identities(session, user)
+    if sensor is None or (
+        identities is not None and (sensor.source, sensor.device_id) not in identities
+    ):
+        raise HTTPException(status_code=404, detail="Sensor no trobat")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(sensor, field, value)
+
+    session.commit()
+    session.refresh(sensor)
     return sensor

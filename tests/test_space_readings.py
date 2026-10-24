@@ -303,3 +303,25 @@ def test_pending_sensor_readings_are_excluded(client, admin_auth, session, world
 
     assert response.json()[0]["count"] == 6
     assert response.json()[0]["max"] == 25.0
+
+def test_a_sensor_can_be_deactivated(client, admin_auth, session, world):
+    sensor = session.scalar(select(Sensor).where(Sensor.name == "temperature"))
+
+    response = client.patch(
+        f"/sensors/{sensor.id}", json={"active": False}, headers=admin_auth
+    )
+
+    assert response.status_code == 200
+    assert response.json()["active"] is False
+
+
+def test_an_inactive_sensor_is_excluded_from_the_averages(
+    client, admin_auth, session, world
+):
+    """Es desactiva justament perquè els seus valors deixen de contar."""
+    sensor = session.scalar(select(Sensor).where(Sensor.name == "temperature"))
+    client.patch(f"/sensors/{sensor.id}", json={"active": False}, headers=admin_auth)
+
+    response = client.get(f"/spaces/{world['room']}/readings", headers=admin_auth)
+
+    assert response.json() == []

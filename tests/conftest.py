@@ -51,8 +51,7 @@ def session(engine) -> Generator[Session]:
     """Sessió aïllada: cada prova treballa sobre una transacció que es desfà."""
     connection = engine.connect()
     transaction = connection.begin()
-    factory = sessionmaker(bind=connection)
-    db = factory()
+    db = Session(bind=connection, join_transaction_mode="create_savepoint")
 
     yield db
 

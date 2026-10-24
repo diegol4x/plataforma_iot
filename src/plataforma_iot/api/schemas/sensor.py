@@ -1,7 +1,7 @@
 """Esquemes GET de sensor"""
 from pydantic import AliasPath, Field
 
-from plataforma_iot.api.schemas.base import OutSchema
+from plataforma_iot.api.schemas.base import OutSchema, InSchema
 
 
 class SensorOut(OutSchema):
@@ -22,3 +22,9 @@ class SensorOut(OutSchema):
     unit: str | None = Field(
         default=None, validation_alias=AliasPath("sensor_type", "unit", "symbol")
     )
+
+class SensorUpdateIn(InSchema):
+    """Modificació d'un sensor"""
+
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    active: bool | None = None
