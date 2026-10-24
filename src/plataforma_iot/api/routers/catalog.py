@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorTypeOut
+from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorTypeOut, SensorTypeUpdateIn
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.api.dependencies import current_user, require_admin
@@ -80,6 +80,44 @@ def create_sensor_type(payload: SensorTypeIn, session: Session = Depends(get_db)
 
     catalogue_pending_sensors(session, sensor_type)
     
+    session.commit()
+    session.refresh(sensor_type)
+    return sensor_type
+
+@router.patch(
+    "/sensor_types/{sensor_type_id}",
+    response_model=SensorTypeOut,
+    dependencies=[Depends(require_admin)],
+)
+def update_sensor_type(
+    sensor_type_id: int,
+    payload: SensorTypeUpdateIn,
+    session: Session = Depends(get_db),
+) -> SensorType:
+    """Corregix el nom, la unitat o el rang d'una magnitud"""
+
+    sensor_type = session.get(SensorType, sensor_type_id)
+    if sensor_type is None:
+        raise HTTPException(status_code=404, detail="Magnitud no trobada")
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if "unit_symbol" in data:
+        unit = session.scalar(select(Unit).where(Unit.symbol == data.pop("unit_symbol")))
+        if unit is None:
+            raise HTTPException(status_code=422, detail="La unitat no està al catàleg")
+        sensor_type.unit_id = unit.id
+
+    for field, value in data.items():
+        setattr(sensor_type, field, value)
+
+    if (
+        sensor_type.range_min is not None
+        and sensor_type.range_max is not None
+        and sensor_type.range_min > sensor_type.range_max
+    ):
+        raise HTTPException(status_code=422, detail="Range_min no pot superar range_max")
+
     session.commit()
     session.refresh(sensor_type)
     return sensor_type

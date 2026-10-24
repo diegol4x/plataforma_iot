@@ -29,10 +29,20 @@ class UnitOut(OutSchema):
     symbol: str
 
 class SensorTypeOut(OutSchema):
-    """Lectura d'una unitat de mesura"""
+    """Magnitud del catàleg"""
 
+    id: int
     code: str
     name: str
     unit: str = Field(validation_alias=AliasPath("unit", "symbol"))
     range_min: float | None
     range_max: float | None
+
+
+class SensorTypeUpdateIn(InSchema):
+    """Modificació d'una magnitud"""
+
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    unit_symbol: str | None = Field(default=None, min_length=1, max_length=16)
+    range_min: float | None = None
+    range_max: float | None = None
