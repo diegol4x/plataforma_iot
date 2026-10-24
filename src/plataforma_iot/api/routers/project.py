@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import current_user
+from plataforma_iot.api.dependencies import current_user, delete_or_409
 from plataforma_iot.api.permissions import (
     can_write_project,
     visible_project_ids,
@@ -123,3 +123,20 @@ def _visible_project(session: Session, user: User, project_id: int) -> Project:
         raise HTTPException(status_code=404, detail="Projecte no trobat")
 
     return project
+
+@router.delete("/{project_id}", status_code=204)
+def delete_project(
+    project_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    """Esborra un projecte sense espais. Només el propietari o un admin."""
+
+    project = _visible_project(session, user, project_id)
+
+    if not can_write_project(user, project):
+        raise HTTPException(
+            status_code=403, detail="Només el propietari pot esborrar el projecte"
+        )
+
+    delete_or_409(session, project, "El projecte encara té espais")

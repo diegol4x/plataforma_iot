@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from plataforma_iot.api.security import decode_access_token
 from plataforma_iot.db import get_db
@@ -47,3 +48,13 @@ def require_admin(user: User = Depends(current_user)) -> User:
             detail="cal rol d'administrador",
         )
     return user
+
+def delete_or_409(session: Session, item, detail: str) -> None:
+    """Esborra un recurs, o torna 409 si encara té dependències"""
+    
+    session.delete(item)
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=detail) from exc

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import current_user
+from plataforma_iot.api.dependencies import current_user, delete_or_409
 from plataforma_iot.api.permissions import (
     can_assign_device_to_space,
     can_write_project,
@@ -304,3 +304,20 @@ def _visible_device(session: Session, user: User, source: str, device_id: str) -
         raise HTTPException(status_code=404, detail="Dispositiu no trobat")
 
     return device
+
+@router.delete("/{space_id}", status_code=204)
+def delete_space(
+    space_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    """Esborra un espai sense fills. Només el propietari del projecte."""
+
+    space = _visible_space(session, user, space_id)
+
+    if not can_write_space(user, space):
+        raise HTTPException(
+            status_code=403, detail="Només el propietari del projecte pot esborrar l'espai"
+        )
+
+    delete_or_409(session, space, "L'espai encara conté altres espais")

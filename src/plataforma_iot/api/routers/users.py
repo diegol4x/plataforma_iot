@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import current_user, require_admin
+from plataforma_iot.api.dependencies import current_user, require_admin, delete_or_409
 from plataforma_iot.api.schemas import PasswordChangeIn, UserIn, UserOut, UserUpdateIn
 from plataforma_iot.api.security import hash_password, verify_password
 from plataforma_iot.db import get_db
@@ -103,3 +103,10 @@ def _get_or_404(session: Session, user_id: int) -> User:
     if user is None:
         raise HTTPException(status_code=404, detail="Usuari no trobat")
     return user
+
+@router.delete("/{user_id}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_user(user_id: int, session: Session = Depends(get_db)) -> None:
+    """Esborra un usuari que no siga propietari de cap projecte"""
+
+    user = _get_or_404(session, user_id)
+    delete_or_409(session, user, "L'usuari és propietari d'algun projecte")

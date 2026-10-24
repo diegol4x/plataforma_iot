@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.dependencies import require_admin
+from plataforma_iot.api.dependencies import require_admin, delete_or_409
 from plataforma_iot.api.schemas import (
     DeviceOut,
     UserOut,
@@ -166,3 +166,10 @@ def _get_or_404(session: Session, workgroup_id: int) -> Workgroup:
     if workgroup is None:
         raise HTTPException(status_code=404, detail="Grup no trobat")
     return workgroup
+
+@router.delete("/{workgroup_id}", status_code=204)
+def delete_workgroup(workgroup_id: int, session: Session = Depends(get_db)) -> None:
+    """Esborra un grup que no tinga projectes"""
+
+    workgroup = _get_or_404(session, workgroup_id)
+    delete_or_409(session, workgroup, "El grup encara té projectes")
