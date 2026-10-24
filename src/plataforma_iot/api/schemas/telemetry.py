@@ -54,3 +54,13 @@ class DiscardDetailOut(DiscardOut):
 
     raw_payload: str
     detail: dict | None
+
+class UplinkOut(OutSchema):
+    """Missatge rebut"""
+
+    id: UUID
+    time: datetime
+    received_at: datetime
+    source: str
+    device_id: str
+    uplink_metadata: dict

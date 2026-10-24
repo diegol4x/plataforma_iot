@@ -3,7 +3,7 @@
 from plataforma_iot.api.schemas.base import OutSchema
 from plataforma_iot.api.schemas.device import DeviceOut, DeviceProvisionIn
 from plataforma_iot.api.schemas.sensor import SensorOut
-from plataforma_iot.api.schemas.telemetry import DiscardDetailOut, DiscardOut, ReadingOut, ReadingBucketOut, ReadingSummaryOut
+from plataforma_iot.api.schemas.telemetry import DiscardDetailOut, DiscardOut, ReadingOut, ReadingBucketOut, ReadingSummaryOut, UplinkOut
 from plataforma_iot.api.schemas.catalog import UnitIn, SensorTypeIn, UnitOut, SensorTypeOut
 from plataforma_iot.api.schemas.auth import TokenOut
 from plataforma_iot.api.schemas.space import SpaceIn, SpaceOut, SpaceUpdateIn
@@ -28,6 +28,7 @@ __all__ = [
     "SpaceOut",
     "ReadingBucketOut",
     "ReadingSummaryOut",
+    "UplinkOut",
     "SpaceUpdateIn",
     "WorkgroupIn",
     "WorkgroupOut",
