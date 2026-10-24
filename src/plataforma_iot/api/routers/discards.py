@@ -9,14 +9,13 @@ from sqlalchemy.orm import Session
 from plataforma_iot.api.schemas import DiscardDetailOut, DiscardOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.telemetry import Discard
-from plataforma_iot.api.dependencies import current_user, require_admin
-
+from plataforma_iot.api.dependencies import require_admin
 
 router = APIRouter(
     prefix="/discards",
     tags=["discards"],
-    dependencies=[Depends(current_user)],
-    )
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.get("", response_model=list[DiscardOut])

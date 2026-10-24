@@ -119,3 +119,7 @@ def test_an_admin_can_write(client, admin, project):
     )
 
     assert response.status_code == 201
+
+def test_a_viewer_cannot_see_discards(client, viewer_auth):
+    """Els descarts guarden el payload cru: sols administració."""
+    assert client.get("/discards", headers=viewer_auth).status_code == 403
