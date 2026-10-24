@@ -7,7 +7,7 @@ from plataforma_iot.api.schemas.telemetry import DiscardDetailOut, DiscardOut, R
 from plataforma_iot.api.schemas.catalog import UnitIn, SensorTypeIn, UnitOut, SensorTypeOut
 from plataforma_iot.api.schemas.auth import TokenOut
 from plataforma_iot.api.schemas.space import SpaceIn, SpaceOut, SpaceUpdateIn
-from plataforma_iot.api.schemas.user import UserOut
+from plataforma_iot.api.schemas.user import UserOut, UserIn, UserUpdateIn, PasswordChangeIn
 from plataforma_iot.api.schemas.workgroup import WorkgroupIn, WorkgroupOut, WorkgroupUpdateIn
 from plataforma_iot.api.schemas.projects import ProjectIn, ProjectOut, ProjectUpdateIn
 
@@ -33,6 +33,9 @@ __all__ = [
     "WorkgroupOut",
     "WorkgroupUpdateIn",
     "UserOut",
+    "UserIn",
+    "UserUpdateIn",
+    "PasswordChangeIn",
     "ProjectIn",
     "ProjectOut",
     "ProjectUpdateIn",
