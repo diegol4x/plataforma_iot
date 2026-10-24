@@ -46,3 +46,8 @@ class SensorTypeUpdateIn(InSchema):
     unit_symbol: str | None = Field(default=None, min_length=1, max_length=16)
     range_min: float | None = None
     range_max: float | None = None
+
+class UnitUpdateIn(InSchema):
+    """Modificació d'una unitat"""
+
+    name: str = Field(min_length=1, max_length=64)

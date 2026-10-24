@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorTypeOut, SensorTypeUpdateIn
+from plataforma_iot.api.schemas import SensorTypeIn, UnitIn, UnitOut, SensorTypeOut, SensorTypeUpdateIn, UnitUpdateIn
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType, Unit
 from plataforma_iot.api.dependencies import current_user, require_admin
@@ -121,3 +121,24 @@ def update_sensor_type(
     session.commit()
     session.refresh(sensor_type)
     return sensor_type
+
+@router.patch(
+    "/units/{unit_id}",
+    response_model=UnitOut,
+    dependencies=[Depends(require_admin)],
+)
+def update_unit(
+    unit_id: int,
+    payload: UnitUpdateIn,
+    session: Session = Depends(get_db),
+) -> Unit:
+    """Corregix el nom d'una unitat"""
+
+    unit = session.get(Unit, unit_id)
+    if unit is None:
+        raise HTTPException(status_code=404, detail="Unitat no trobada")
+
+    unit.name = payload.name
+    session.commit()
+    session.refresh(unit)
+    return unit

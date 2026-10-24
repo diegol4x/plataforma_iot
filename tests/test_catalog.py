@@ -2,6 +2,8 @@
 
 import pytest
 
+from sqlalchemy import select
+
 from plataforma_iot.models.catalog import Unit
 
 
@@ -62,3 +64,13 @@ def test_a_viewer_cannot_edit_the_catalogue(client, viewer_auth, admin_auth, uni
     )
 
     assert response.status_code == 403
+
+def test_the_name_of_a_unit_can_be_corrected(client, admin_auth, units, session):
+    unit = session.scalar(select(Unit).where(Unit.symbol == "hPa"))
+
+    response = client.patch(
+        f"/units/{unit.id}", json={"name": "Hectopascal (corregit)"}, headers=admin_auth
+    )
+
+    assert response.status_code == 200
+    assert response.json()["symbol"] == "hPa"
