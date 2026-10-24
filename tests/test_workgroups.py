@@ -10,6 +10,8 @@ from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.user import User
 from plataforma_iot.models.workgroup import Workgroup
+from plataforma_iot.models.project import Project
+
 
 TEST_PASSWORD = "contrasenya-de-proves"
 
@@ -148,3 +150,14 @@ def test_assigning_a_device_makes_it_visible_to_the_members(
 
     response = client.get("/devices", headers=viewer_auth)
     assert [d["device_id"] for d in response.json()] == ["node-00"]
+
+def test_a_workgroup_with_projects_cannot_be_deleted(client, admin_auth, session, workgroup):
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    session.add(Project(name="Estudi", workgroup_id=workgroup.id, owner_id=owner.id))
+    session.flush()
+
+    assert client.delete(f"/workgroups/{workgroup.id}", headers=admin_auth).status_code == 409
+
+
+def test_an_empty_workgroup_can_be_deleted(client, admin_auth, workgroup):
+    assert client.delete(f"/workgroups/{workgroup.id}", headers=admin_auth).status_code == 204

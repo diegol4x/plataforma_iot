@@ -235,3 +235,36 @@ def test_moving_within_a_project_replaces_the_previous_space(
 
     assert client.get(f"/spaces/{kitchen.id}/devices", headers=admin_auth).json() == []
     assert len(client.get(f"/spaces/{bedroom.id}/devices", headers=admin_auth).json()) == 1
+
+
+def test_a_project_with_spaces_cannot_be_deleted(client, admin_auth, session, workgroup):
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    project = Project(name="Estudi", workgroup_id=workgroup.id, owner_id=owner.id)
+    session.add(project)
+    session.flush()
+    session.add(Space(name="Sala", type="space", project_id=project.id))
+    session.flush()
+
+    response = client.delete(f"/projects/{project.id}", headers=admin_auth)
+
+    assert response.status_code == 409
+
+
+def test_an_empty_project_can_be_deleted(client, admin_auth, session, workgroup):
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    project = Project(name="Buit", workgroup_id=workgroup.id, owner_id=owner.id)
+    session.add(project)
+    session.flush()
+
+    assert client.delete(f"/projects/{project.id}", headers=admin_auth).status_code == 204
+
+
+def test_another_member_cannot_delete_it(client, session, workgroup):
+    owner_auth = _auth(client, session, "propietari", workgroup)
+    created = client.post(
+        "/projects", json={"name": "Pilot", "workgroup_id": workgroup.id}, headers=owner_auth
+    ).json()
+
+    other_auth = _auth(client, session, "company", workgroup)
+
+    assert client.delete(f"/projects/{created['id']}", headers=other_auth).status_code == 403

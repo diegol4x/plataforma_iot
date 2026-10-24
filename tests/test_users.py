@@ -6,6 +6,9 @@ from sqlalchemy import select
 from plataforma_iot.api.security import verify_password
 from plataforma_iot.domain.user_role import UserRole
 from plataforma_iot.models.user import User
+from plataforma_iot.models.workgroup import Workgroup
+from plataforma_iot.models.project import Project
+
 
 TEST_PASSWORD = "contrasenya-de-proves"
 NEW_PASSWORD = "una-contrasenya-nova"
@@ -103,3 +106,28 @@ def test_an_admin_deactivates_a_user(client, admin_auth, viewer_auth, session):
 
 def test_rejects_an_unknown_user(client, admin_auth):
     assert client.get("/users/9999", headers=admin_auth).status_code == 404
+
+
+def test_a_user_who_owns_projects_cannot_be_deleted(client, admin_auth, session):
+    created = client.post(
+        "/users",
+        json={"username": "propietari", "password": TEST_PASSWORD},
+        headers=admin_auth,
+    ).json()
+
+    workgroup = Workgroup(name="Grup")
+    session.add(workgroup)
+    session.flush()
+    session.add(Project(name="Seu", workgroup_id=workgroup.id, owner_id=created["id"]))
+    session.flush()
+
+    assert client.delete(f"/users/{created['id']}", headers=admin_auth).status_code == 409
+
+def test_a_user_without_projects_can_be_deleted(client, admin_auth):
+    created = client.post(
+        "/users",
+        json={"username": "efimer", "password": TEST_PASSWORD},
+        headers=admin_auth,
+    ).json()
+
+    assert client.delete(f"/users/{created['id']}", headers=admin_auth).status_code == 204
