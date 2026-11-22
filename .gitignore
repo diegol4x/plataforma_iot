@@ -226,3 +226,7 @@ ERRORES.txt
 #MQTT
 mosquitto/data/
 mosquitto/log/
+
+.nicegui/
+.coverage
+htmlcov/
