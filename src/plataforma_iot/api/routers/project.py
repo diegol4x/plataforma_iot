@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from plataforma_iot.api.dependencies import current_user, delete_or_409
 from plataforma_iot.api.permissions import (
@@ -31,7 +31,11 @@ def list_projects(
 ) -> list[Project]:
     """Torna els projectes dels grups de l'usuari"""
 
-    query = select(Project).order_by(Project.name)
+    query = (
+        select(Project)
+        .options(joinedload(Project.workgroup), joinedload(Project.owner))
+        .order_by(Project.name)
+    )
 
     projects = visible_project_ids(session, user)
     if projects is not None:
@@ -115,14 +119,18 @@ def update_project(
 
 def _visible_project(session: Session, user: User, project_id: int) -> Project:
     """Recupera un projecte comprovant que l'usuari el pot veure."""
-
-    project = session.get(Project, project_id)
+    project = session.scalar(
+        select(Project)
+        .options(joinedload(Project.workgroup), joinedload(Project.owner))
+        .where(Project.id == project_id)
+    )
 
     projects = visible_project_ids(session, user)
     if project is None or (projects is not None and project.id not in projects):
         raise HTTPException(status_code=404, detail="Projecte no trobat")
 
     return project
+
 
 @router.delete("/{project_id}", status_code=204)
 def delete_project(

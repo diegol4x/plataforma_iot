@@ -22,6 +22,12 @@ CAYENNE_TYPES: dict[str, tuple[str, str]] = {
     "barometer": ("pressure", "hPa"),
 }
 
+# El còdec CayenneLPP de ChirpStack només descodifica els tipus bàsics, i la
+# bateria arriba com a entrada analògica. Sols es llig en aquest canal: una
+# entrada analògica en un altre canal no se sap què mesura.
+BATTERY_TYPE = "analogInput"
+BATTERY_CHANNEL = "4"
+
 
 class ChirpStackTransformer:
     """Convertix un event/up de ChirpStack a format canònic"""
@@ -42,13 +48,18 @@ class ChirpStackTransformer:
         time = self._parse_time(data)
         records = self._build_records(data, time)
 
+        metadata = self._metadata(data)
+        battery = self._battery(data)
+        if battery is not None:
+            metadata["battery_level"] = battery
+
         try:
             return CanonicalUplink(
                 source=SOURCE,
                 device_id=device_id,
                 received_at=received_at,
                 records=records,
-                uplink_metadata=self._metadata(data),
+                uplink_metadata=metadata,
             )
         except ValidationError as exc:
             raise InvalidValue(f"uplink no vàlid: {exc.error_count()} errors") from exc
@@ -89,7 +100,6 @@ class ChirpStackTransformer:
         except (TypeError, ValueError) as exc:
             raise InvalidTimestamp(f"Marca temporal invàlida: {raw!r}") from exc
 
-
     def _build_records(self, data: dict, time: datetime) -> list[CanonicalRecord]:
         """Construïx un registre per cada lectura CayenneLPP suportada"""
 
@@ -113,7 +123,7 @@ class ChirpStackTransformer:
             name, unit = mapping
 
             for value in channels.values():
-                if isinstance(value, bool) or not isinstance(value, (int,float)):
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
                     raise InvalidValue(f"Valor no numèric a {lpp_type}: {value!r}")
 
                 records.append(
@@ -124,6 +134,22 @@ class ChirpStackTransformer:
             raise InvalidValue(f"cap lectura CayenneLPP suportada; tipus ignorats: {ignored}")
 
         return records
+
+    def _battery(self, data: dict) -> int | None:
+        """Nivell de bateria en percentatge, si el node l'envia."""
+
+        channels = (data.get("object") or {}).get(BATTERY_TYPE)
+        if not isinstance(channels, dict):
+            return None
+
+        value = channels.get(BATTERY_CHANNEL)
+        if value is None:
+            return None
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise InvalidValue(f"Bateria no numèrica: {value!r}")
+
+        return max(0, min(100, round(value)))
 
     def _metadata(self, data: dict) -> dict:
         """Aplana rxInfo i txInfo dins del sac de metadades"""

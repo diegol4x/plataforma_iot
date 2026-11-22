@@ -17,13 +17,18 @@ def build_payload() -> dict:
     return {
         "time": datetime.now(timezone.utc).isoformat(),
         "readings": [
-            {"name": "temperature", "unit": "Cel", "value":round(random.uniform(25, 33), 2)},
-            {"name": "humidity", "unit": "%RH", "value":round(random.uniform(70, 90), 2)},
+            {"name": "temperature", "unit": "Cel", "value": round(random.uniform(25, 33), 2)},
+            {"name": "humidity", "unit": "%RH", "value": round(random.uniform(70, 90), 2)},
         ],
     }
 
+
 def run(interval: int = 5) -> None:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    
+    if settings.mqtt_username is not None:
+        client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
+
     client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
     client.loop_start()
 
@@ -36,6 +41,7 @@ def run(interval: int = 5) -> None:
     except KeyboardInterrupt:
         client.loop_stop()
         client.disconnect()
+
 
 if __name__ == "__main__":
     run()

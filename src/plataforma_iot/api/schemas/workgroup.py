@@ -24,3 +24,5 @@ class WorkgroupOut(OutSchema):
     id: int
     name: str
     description: str | None
+    member_count: int = 0
+    device_count: int = 0

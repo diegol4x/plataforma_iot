@@ -2,6 +2,7 @@
 
 from pydantic import Field
 
+from plataforma_iot.domain.space_type import SpaceType
 from plataforma_iot.api.schemas.base import OutSchema, InSchema
 
 
@@ -18,8 +19,11 @@ class SpaceOut(OutSchema):
 
     id: int
     name: str
-    type: str
+    type: SpaceType
     parent_id: int | None
+    project_id: int
+    device_count: int = 0
+    adjacent_ids: list[int] = []
 
 class SpaceUpdateIn(InSchema):
     """Modificació d'un espai"""

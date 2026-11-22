@@ -65,6 +65,10 @@ def run() -> None:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, userdata=build_router())
     client.on_connect = on_connect
     client.on_message = on_message
+
+    if settings.mqtt_username is not None:
+        client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
+
     client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
     client.loop_forever()
 

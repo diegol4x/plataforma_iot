@@ -3,11 +3,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Response
+from plataforma_iot.api.dependencies import paginate, require_admin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from plataforma_iot.api.dependencies import require_admin
 from plataforma_iot.api.schemas import UplinkOut
 from plataforma_iot.db import get_db
 from plataforma_iot.models.telemetry import Uplink
@@ -21,6 +20,7 @@ router = APIRouter(
 
 @router.get("", response_model=list[UplinkOut])
 def list_uplinks(
+    response: Response,
     session: Session = Depends(get_db),
     source: str | None = None,
     device_id: str | None = None,
@@ -42,7 +42,7 @@ def list_uplinks(
     if until is not None:
         query = query.where(Uplink.time < until)
 
-    return list(session.scalars(query.limit(limit).offset(offset)))
+    return paginate(session, query, response, limit, offset)
 
 
 @router.get("/{uplink_id}", response_model=UplinkOut)

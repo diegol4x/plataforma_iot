@@ -159,3 +159,29 @@ def test_the_uplink_time_is_the_earliest_record(session, catalogue):
     persist(session, uplink)
 
     assert session.scalar(select(Uplink)).time == TIME
+
+def test_battery_level_comes_from_metadata(session, catalogue):
+    uplink = CanonicalUplink(
+        source="own",
+        device_id="node-00",
+        received_at=TIME,
+        records=[CanonicalRecord(name="temperature", value=21.5, unit="Cel", time=TIME)],
+        uplink_metadata={"battery_level": 67},
+    )
+    persist(session, uplink)
+
+    assert _device(session).battery_level == 67
+
+
+def test_battery_level_is_kept_when_an_uplink_does_not_carry_it(session, catalogue):
+    with_battery = CanonicalUplink(
+        source="own",
+        device_id="node-00",
+        received_at=TIME,
+        records=[CanonicalRecord(name="temperature", value=21.5, unit="Cel", time=TIME)],
+        uplink_metadata={"battery_level": 67},
+    )
+    persist(session, with_battery)
+    persist(session, _uplink(("temperature", 22.0, "Cel"), received_at=TIME + timedelta(minutes=5)))
+
+    assert _device(session).battery_level == 67

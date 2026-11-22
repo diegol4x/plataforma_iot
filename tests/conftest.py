@@ -7,7 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.engine import make_url
 
+from plataforma_iot.config import settings
 from plataforma_iot.api.app import app
 from plataforma_iot.api.security import hash_password
 from plataforma_iot.db import get_db
@@ -18,11 +20,11 @@ from plataforma_iot.models.project import Project
 from plataforma_iot.models.workgroup import Workgroup
 
 
-ADMIN_URL = os.environ.get(
-    "TEST_ADMIN_URL", "postgresql+psycopg://appuser:appuser@localhost:5432/postgres"
+ADMIN_URL = make_url(os.environ.get("TEST_ADMIN_URL") or settings.database_url).set(
+    database="postgres"
 )
 TEST_DB = "iot_monitoring_test"
-TEST_URL = ADMIN_URL.rsplit("/", 1)[0] + f"/{TEST_DB}"
+TEST_URL = ADMIN_URL.set(database=TEST_DB)
 TEST_PASSWORD = "contrasenya-de-proves"
 
 

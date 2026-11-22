@@ -1,6 +1,6 @@
 """Descripció de la classe"""
 
-from sqlalchemy import ForeignKey, String, Enum as SAEnum, Column, ForeignKeyConstraint, Table
+from sqlalchemy import ForeignKey, String, Enum as SAEnum, Column, ForeignKeyConstraint, Table, CheckConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from plataforma_iot.models.base import Base
@@ -22,6 +22,18 @@ device_space = Table(
         ["devices.source", "devices.device_id"],
         ondelete="CASCADE",
     ),
+)
+
+space_adjacency = Table(
+    "space_adjacency",
+    Base.metadata,
+    Column("a_id", ForeignKey("spaces.id", ondelete="CASCADE"), primary_key=True),
+    Column("b_id", ForeignKey("spaces.id", ondelete="CASCADE"), primary_key=True),
+    # Un sol registre per parell: l'adjacència és simètrica, així que guardar
+    # els dos sentits duplicaria la informació i obriria la porta a que es
+    # desincronitzaren.
+    CheckConstraint("a_id < b_id", name="ck_space_adjacency_ordered"),
+    Index("ix_space_adjacency_b", "b_id"),
 )
 
 class Space(Base):

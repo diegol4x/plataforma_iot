@@ -52,6 +52,13 @@ def persist(session: Session, uplink: CanonicalUplink) -> None:
         )
 
     device.last_seen = uplink.received_at
+
+    # La bateria no és una mesura: arriba en les metadades i es guarda al
+    # dispositiu. Si un uplink no la porta, es conserva l'últim valor conegut.
+    battery = uplink.uplink_metadata.get("battery_level")
+    if battery is not None:
+        device.battery_level = battery
+
     session.commit()
 
 

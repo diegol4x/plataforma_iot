@@ -1,10 +1,9 @@
 """Endpoints de dispositius"""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from plataforma_iot.api.dependencies import current_user, paginate, require_admin
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
-
-from plataforma_iot.api.dependencies import current_user, require_admin
 from plataforma_iot.api.permissions import visible_device_identities
 from plataforma_iot.api.schemas import DeviceOut, DeviceProvisionIn
 from plataforma_iot.db import get_db
@@ -21,6 +20,7 @@ router = APIRouter(
 
 @router.get("", response_model=list[DeviceOut])
 def list_devices(
+    response: Response,
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
     status: DeviceStatus | None = None,
@@ -40,7 +40,7 @@ def list_devices(
     if status is not None:
         query = query.where(Device.status == status)
 
-    return list(session.scalars(query.limit(limit).offset(offset)))
+    return paginate(session, query, response, limit, offset)
 
 
 @router.get("/{source}/{device_id}", response_model=DeviceOut)

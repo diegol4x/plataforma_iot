@@ -1,6 +1,6 @@
 """Esquemes de projectes"""
 
-from pydantic import Field
+from pydantic import Field, AliasPath
 
 from plataforma_iot.api.schemas.base import OutSchema, InSchema
 
@@ -27,4 +27,6 @@ class ProjectOut(OutSchema):
     name: str
     description: str | None
     workgroup_id: int
+    workgroup_name: str = Field(validation_alias=AliasPath("workgroup", "name"))
     owner_id: int
+    owner_name: str = Field(validation_alias=AliasPath("owner", "username"))

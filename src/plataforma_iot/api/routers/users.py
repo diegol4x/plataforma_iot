@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from plataforma_iot.api.dependencies import current_user, require_admin, delete_or_409
-from plataforma_iot.api.schemas import PasswordChangeIn, UserIn, UserOut, UserUpdateIn
+from plataforma_iot.api.schemas import PasswordChangeIn, UserIn, UserOut, UserUpdateIn, UserMeOut
 from plataforma_iot.api.security import hash_password, verify_password
 from plataforma_iot.db import get_db
 from plataforma_iot.models.user import User
@@ -13,12 +13,11 @@ from plataforma_iot.models.user import User
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me", response_model=UserMeOut)
 def read_me(user: User = Depends(current_user)) -> User:
-    """Torna l'usuari autenticat"""
+    """Torna l'usuari autenticat amb els seus grups"""
 
     return user
-
 
 @router.patch("/me", response_model=UserOut)
 def change_my_password(

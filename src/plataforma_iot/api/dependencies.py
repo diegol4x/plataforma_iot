@@ -1,9 +1,9 @@
 """Dependències d'autenticació i autorització"""
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -58,3 +58,12 @@ def delete_or_409(session: Session, item, detail: str) -> None:
     except IntegrityError as exc:
         session.rollback()
         raise HTTPException(status_code=409, detail=detail) from exc
+
+def paginate(session: Session, query, response: Response, limit: int, offset: int) -> list:
+    """Aplica la paginació i posa el total a la capçalera X-Total-Count"""
+    total = session.scalar(
+        select(func.count()).select_from(query.order_by(None).subquery())
+    )
+    response.headers["X-Total-Count"] = str(total)
+
+    return list(session.scalars(query.limit(limit).offset(offset)))

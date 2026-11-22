@@ -5,7 +5,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import paho.mqtt.publish as publish
+from mqtt import send
 
 TOPIC = (
     "application/fc081e09-a142-44f5-8a33-ef44c1e9ff62"
@@ -28,7 +28,7 @@ def main() -> None:
             "humiditySensor": {"2": round(random.uniform(40.0, 70.0), 2)},
             "barometer": {"3": round(random.uniform(1005.0, 1020.0), 1)},
         }
-        publish.single(TOPIC, json.dumps(event), hostname="localhost", port=1883)
+        send(TOPIC, json.dumps(event))
         published += 1
 
     print(f"{published} uplinks publicats")

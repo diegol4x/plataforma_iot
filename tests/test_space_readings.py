@@ -325,3 +325,12 @@ def test_an_inactive_sensor_is_excluded_from_the_averages(
     response = client.get(f"/spaces/{world['room']}/readings", headers=admin_auth)
 
     assert response.json() == []
+
+def test_the_listing_brings_device_counts(client, admin_auth, world):
+    """La interfície els necessita en cada fila: anar-los a buscar un per un
+    serien dues peticions per espai."""
+    response = client.get("/spaces", headers=admin_auth)
+
+    rooms = {s["name"]: s for s in response.json()}
+    assert rooms["Saló"]["device_count"] == 1
+    assert rooms["Edifici"]["device_count"] == 0

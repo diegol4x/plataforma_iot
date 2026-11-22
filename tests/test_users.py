@@ -131,3 +131,15 @@ def test_a_user_without_projects_can_be_deleted(client, admin_auth):
     ).json()
 
     assert client.delete(f"/users/{created['id']}", headers=admin_auth).status_code == 204
+
+def test_me_includes_the_users_workgroups(client, viewer_auth, session):
+    """Un viewer necessita saber-ho per a crear projectes, i no pot llistar grups."""
+    lector = _find(session, "lector")
+    workgroup = Workgroup(name="Laboratori")
+    workgroup.members.append(lector)
+    session.add(workgroup)
+    session.flush()
+
+    response = client.get("/users/me", headers=viewer_auth)
+
+    assert [g["name"] for g in response.json()["workgroups"]] == ["Laboratori"]

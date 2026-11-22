@@ -42,8 +42,6 @@ def _encode(event: dict) -> bytes:
     return json.dumps(event).encode()
 
 
-# --- Casos vàlids ---
-
 def test_transforms_a_complete_uplink(transformer, event):
     event["object"] = BME280_OBJECT
     uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
@@ -119,8 +117,6 @@ def test_device_id_comes_from_payload_not_topic(transformer, event):
     assert uplink.device_id == "804f6944ce5483dd"
 
 
-# --- Rebuigs ---
-
 def test_rejects_real_fixture_with_only_analog_input(transformer, event):
     with pytest.raises(InvalidValue, match="analogInput"):
         transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
@@ -178,3 +174,31 @@ def test_unreadable_payload_has_no_identity(transformer):
     with pytest.raises(UnreadablePayload) as info:
         transformer.transform(TOPIC, b"no es json", RECEIVED_AT)
     assert info.value.device_id is None
+
+
+def test_battery_goes_to_metadata_not_to_records(transformer, event):
+    event["object"] = BME280_OBJECT | {"analogInput": {"4": 67.0}}
+    uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
+
+    assert uplink.uplink_metadata["battery_level"] == 67
+    assert len(uplink.records) == 3
+
+
+def test_analog_input_on_other_channel_is_not_battery(transformer, event):
+    event["object"] = BME280_OBJECT | {"analogInput": {"1": 67.0}}
+    uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
+
+    assert "battery_level" not in uplink.uplink_metadata
+
+
+def test_battery_is_clamped_to_percentage(transformer, event):
+    event["object"] = BME280_OBJECT | {"analogInput": {"4": 104.3}}
+    uplink = transformer.transform(TOPIC, _encode(event), RECEIVED_AT)
+
+    assert uplink.uplink_metadata["battery_level"] == 100
+
+
+def test_rejects_non_numeric_battery(transformer, event):
+    event["object"] = BME280_OBJECT | {"analogInput": {"4": "plena"}}
+    with pytest.raises(InvalidValue, match="Bateria"):
+        transformer.transform(TOPIC, _encode(event), RECEIVED_AT)

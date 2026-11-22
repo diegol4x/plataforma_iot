@@ -1,7 +1,7 @@
 """Endpoints de grups de treball. Només per a administradors."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from plataforma_iot.api.dependencies import require_admin, delete_or_409
@@ -15,7 +15,7 @@ from plataforma_iot.api.schemas import (
 from plataforma_iot.db import get_db
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.user import User
-from plataforma_iot.models.workgroup import Workgroup
+from plataforma_iot.models.workgroup import Workgroup, user_workgroup, device_workgroup
 
 router = APIRouter(
     prefix="/workgroups",
@@ -25,10 +25,36 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[WorkgroupOut])
-def list_workgroups(session: Session = Depends(get_db)) -> list[Workgroup]:
-    """Torna tots els grups de treball"""
+def list_workgroups(session: Session = Depends(get_db)) -> list[dict]:
+    """Torna tots els grups amb quants membres i dispositius tenen"""
 
-    return list(session.scalars(select(Workgroup).order_by(Workgroup.name)))
+    members = (
+        select(func.count())
+        .select_from(user_workgroup)
+        .where(user_workgroup.c.workgroup_id == Workgroup.id)
+        .scalar_subquery()
+    )
+    devices = (
+        select(func.count())
+        .select_from(device_workgroup)
+        .where(device_workgroup.c.workgroup_id == Workgroup.id)
+        .scalar_subquery()
+    )
+
+    rows = session.execute(
+        select(Workgroup, members, devices).order_by(Workgroup.name)
+    )
+
+    return [
+        {
+            "id": group.id,
+            "name": group.name,
+            "description": group.description,
+            "member_count": member_count,
+            "device_count": device_count,
+        }
+        for group, member_count, device_count in rows
+    ]
 
 
 @router.post("", response_model=WorkgroupOut, status_code=201)

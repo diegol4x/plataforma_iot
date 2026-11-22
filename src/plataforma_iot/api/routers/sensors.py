@@ -1,11 +1,11 @@
 """Endpoints de sensors"""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from plataforma_iot.api.dependencies import current_user, paginate, require_admin
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from plataforma_iot.api.schemas import SensorOut, SensorUpdateIn
-from plataforma_iot.api.dependencies import current_user, require_admin
 from plataforma_iot.api.permissions import visible_device_identities
 from plataforma_iot.db import get_db
 from plataforma_iot.models.catalog import SensorType
@@ -28,6 +28,7 @@ def _base_query():
 
 @router.get("", response_model=list[SensorOut])
 def list_sensors(
+    response: Response,
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
     source: str | None = None,
@@ -59,7 +60,7 @@ def list_sensors(
     elif pending is False:
         query = query.where(Sensor.sensor_type_id.is_not(None))
 
-    return list(session.scalars(query.limit(limit).offset(offset)))
+    return paginate(session, query, response, limit, offset)
 
 
 @router.get("/{sensor_id}", response_model=SensorOut)

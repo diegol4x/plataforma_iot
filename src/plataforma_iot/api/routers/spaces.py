@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 
 from plataforma_iot.api.dependencies import current_user, delete_or_409
@@ -15,6 +15,7 @@ from plataforma_iot.api.permissions import (
     visible_project_ids,
 )
 from plataforma_iot.api.queries.readings import BUCKETS, descendant_ids, series, summarize
+from plataforma_iot.api.queries.space_adjacency import neighbours, ordered_pair
 from plataforma_iot.api.schemas import (
     DeviceOut,
     ReadingBucketOut,
@@ -26,7 +27,7 @@ from plataforma_iot.api.schemas import (
 from plataforma_iot.db import get_db
 from plataforma_iot.models.device import Device
 from plataforma_iot.models.project import Project
-from plataforma_iot.models.space import Space, device_space
+from plataforma_iot.models.space import Space, device_space, space_adjacency
 from plataforma_iot.models.user import User
 
 router = APIRouter(
@@ -40,16 +41,53 @@ router = APIRouter(
 def list_spaces(
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
-) -> list[Space]:
-    """Torna els espais visibles per a l'usuari"""
+) -> list[dict]:
+    """Torna els espais visibles amb els seus dispositius i adjacències"""
+    devices = (
+        select(func.count())
+        .select_from(device_space)
+        .where(device_space.c.space_id == Space.id)
+        .scalar_subquery()
+    )
 
-    query = select(Space).order_by(Space.id)
+    query = select(Space, devices).order_by(Space.id)
 
     projects = visible_project_ids(session, user)
     if projects is not None:
         query = query.where(Space.project_id.in_(projects))
 
-    return list(session.scalars(query))
+    rows = list(session.execute(query))
+    space_ids = [space.id for space, _ in rows]
+
+    # L'adjacència es guarda una sola volta amb a_id < b_id, així que cal
+    # recórrer les dues columnes per a muntar els veïns de cada espai.
+    by_space: dict[int, list[int]] = {space_id: [] for space_id in space_ids}
+
+    for a_id, b_id in session.execute(
+        select(space_adjacency).where(
+            or_(
+                space_adjacency.c.a_id.in_(space_ids),
+                space_adjacency.c.b_id.in_(space_ids),
+            )
+        )
+    ):
+        if a_id in by_space:
+            by_space[a_id].append(b_id)
+        if b_id in by_space:
+            by_space[b_id].append(a_id)
+
+    return [
+        {
+            "id": space.id,
+            "name": space.name,
+            "type": space.type,
+            "parent_id": space.parent_id,
+            "project_id": space.project_id,
+            "device_count": device_count,
+            "adjacent_ids": by_space[space.id],
+        }
+        for space, device_count in rows
+    ]
 
 
 @router.post("", response_model=SpaceOut, status_code=201)
@@ -321,3 +359,88 @@ def delete_space(
         )
 
     delete_or_409(session, space, "L'espai encara conté altres espais")
+
+@router.get("/{space_id}/adjacent", response_model=list[SpaceOut])
+def list_adjacent(
+    space_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> list[Space]:
+    """Torna els espais adjacents a un altre"""
+
+    _visible_space(session, user, space_id)
+    return neighbours(session, space_id)
+
+
+@router.put("/{space_id}/adjacent/{other_id}", status_code=204)
+def add_adjacency(
+    space_id: int,
+    other_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    """Declara que dos espais són adjacents.
+
+    L'adjacència és simètrica, així que l'ordre dels dos identificadors no
+    importa: es guarda una sola volta, sempre amb el menor primer.
+    """
+
+    space = _visible_space(session, user, space_id)
+    other = _visible_space(session, user, other_id)
+
+    if space.id == other.id:
+        raise HTTPException(
+            status_code=422, detail="Un espai no pot ser adjacent a si mateix"
+        )
+
+    # Invariant d'aplicació, no d'esquema: un CHECK no pot mirar el project_id
+    # d'una altra taula, i un trigger afegiria lògica en SQL que no compensa.
+    if space.project_id != other.project_id:
+        raise HTTPException(
+            status_code=422, detail="Els dos espais han de ser del mateix projecte"
+        )
+
+    if not can_write_space(user, space):
+        raise HTTPException(
+            status_code=403,
+            detail="Només el propietari del projecte pot declarar adjacències",
+        )
+
+    a_id, b_id = ordered_pair(space.id, other.id)
+
+    exists = session.scalar(
+        select(space_adjacency).where(
+            space_adjacency.c.a_id == a_id, space_adjacency.c.b_id == b_id
+        )
+    )
+    if exists is None:
+        session.execute(space_adjacency.insert().values(a_id=a_id, b_id=b_id))
+        session.commit()
+
+
+@router.delete("/{space_id}/adjacent/{other_id}", status_code=204)
+def remove_adjacency(
+    space_id: int,
+    other_id: int,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    """Trau l'adjacència entre dos espais. Si no n'hi havia, no fa res."""
+
+    space = _visible_space(session, user, space_id)
+    other = _visible_space(session, user, other_id)
+
+    if not can_write_space(user, space):
+        raise HTTPException(
+            status_code=403,
+            detail="Només el propietari del projecte pot llevar adjacències",
+        )
+
+    a_id, b_id = ordered_pair(space.id, other.id)
+
+    session.execute(
+        space_adjacency.delete().where(
+            space_adjacency.c.a_id == a_id, space_adjacency.c.b_id == b_id
+        )
+    )
+    session.commit()

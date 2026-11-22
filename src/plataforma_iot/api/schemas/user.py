@@ -37,3 +37,15 @@ class UserOut(OutSchema):
     username: str
     role: UserRole
     active: bool
+
+class WorkgroupBriefOut(OutSchema):
+    """Grup simplificat"""
+
+    id: int
+    name: str
+
+
+class UserMeOut(UserOut):
+    """El perfil propi, amb els grups als quals es pertany"""
+
+    workgroups: list[WorkgroupBriefOut] = []

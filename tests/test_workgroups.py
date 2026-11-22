@@ -161,3 +161,13 @@ def test_a_workgroup_with_projects_cannot_be_deleted(client, admin_auth, session
 
 def test_an_empty_workgroup_can_be_deleted(client, admin_auth, workgroup):
     assert client.delete(f"/workgroups/{workgroup.id}", headers=admin_auth).status_code == 204
+
+def test_the_listing_brings_the_counts(client, admin_auth, session, workgroup, device, member):
+    client.put(f"/workgroups/{workgroup.id}/members/{member.id}", headers=admin_auth)
+    client.put(f"/workgroups/{workgroup.id}/devices/own/node-00", headers=admin_auth)
+
+    groups = client.get("/workgroups", headers=admin_auth).json()
+    found = next(g for g in groups if g["id"] == workgroup.id)
+
+    assert found["member_count"] == 1
+    assert found["device_count"] == 1

@@ -268,3 +268,13 @@ def test_another_member_cannot_delete_it(client, session, workgroup):
     other_auth = _auth(client, session, "company", workgroup)
 
     assert client.delete(f"/projects/{created['id']}", headers=other_auth).status_code == 403
+
+def test_the_listing_brings_the_names(client, admin_auth, session, workgroup):
+    owner = session.scalar(select(User).where(User.username == "admin"))
+    session.add(Project(name="Estudi", workgroup_id=workgroup.id, owner_id=owner.id))
+    session.flush()
+
+    found = client.get("/projects", headers=admin_auth).json()[0]
+
+    assert found["workgroup_name"] == "Laboratori"
+    assert found["owner_name"] == "admin"
